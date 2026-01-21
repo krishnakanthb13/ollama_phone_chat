@@ -16,6 +16,15 @@ All interactions with the SQLite database use **parameterized queries** via the 
 ### 3. Static File Isolation
 The Express server is configured to serve static assets only from the `public/` directory, preventing directory traversal attacks.
 
+### 4. Transparent Data Encryption (TDE)
+When an `APP_PASSWORD` is configured in the environment, the application automatically encrypts the message `content` and `thinking` fields before persistence.
+- **Algorithm**: AES-256-CBC
+- **Key Derivation**: SHA-256 hash of your `APP_PASSWORD`.
+- **IV**: Random 16-byte initialization vector stored per-message.
+
+### 5. App-Level Authentication
+If an `APP_PASSWORD` is set, the server enforces a custom header check (`X-App-Password`) for all API requests. The frontend provides a secure login overlay to handle this locally.
+
 ---
 
 ## Security Recommendations

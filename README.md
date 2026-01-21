@@ -5,6 +5,8 @@
 
 **Ollama Phone Chat** is a seamless bridge for chatting with local and cloud [Ollama](https://ollama.com/) models from your mobile devices. It transforms your desktop's AI capabilities into a private, mobile-first experience with zero configuration.
 
+![Ollama Phone Chat](./assets/app_collage_promo.png)
+
 ---
 
 ## 🚀 Key Features
@@ -14,6 +16,9 @@
 -   **"Thinking" Support**: Visualize the reasoning process of models (like DeepSeek) in real-time.
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
+-   **Font Size Controls**: Three adjustable text sizes (Small/Med/Large) for optimal readability.
+-   **Encrypted History**: Messages are encrypted at rest using AES-256 (requires `APP_PASSWORD`).
+-   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.
 -   **Privacy First**: 100% local. Your data never leaves your home network.
 
 ---
@@ -32,6 +37,13 @@
     npm start
     ```
 4.  **Connect**: Scan the QR code shown in your terminal with your phone.
+
+### 🔒 Securing your Bridge
+To enable encryption and password protection, add an `APP_PASSWORD` to your `.env` file:
+```env
+APP_PASSWORD=your_secret_password_here
+```
+When set, all messages saved to the database will be encrypted with **AES-256-CBC**, and the web interface will require this password to grant access.
 
 ---
 

@@ -23,9 +23,9 @@ graph TD
 | `server.js` | Main entry point. Handles routing, Ollama detection, and SSE streaming. |
 | `db.js` | Database initialization and promisified SQLite wrappers. |
 | `public/` | Static files for the frontend. |
-| `public/index.html` | The main UI structure (mobile-first). |
-| `public/app.js` | Frontend logic: state management, SSE handling, and UI rendering. |
-| `public/styles.css` | Design system and responsive layouts. |
+| `public/index.html` | The main UI structure (mobile-first). Includes font size controls. |
+| `public/app.js` | Frontend logic: state management, SSE handling, UI rendering, and font scaling. |
+| `public/styles.css` | Design system, responsive layouts, and typography presets. |
 | `data/` | Directory containing the SQLite database (`chats.db`). |
 | `models_cache.json` | Local cache of Ollama models for offline/fallback mode. |
 | `seed_prompt.txt` | Default system prompt template. |
