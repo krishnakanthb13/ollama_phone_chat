@@ -34,11 +34,13 @@
       <!-- Hidden elements for logic binding if needed, but we will move controls to header -->
       <input type="checkbox" id="thinking-toggle" style="display: none;">
 
-      <div class="chat-list" id="chat-list">
-        <!-- Chat items injected here -->
+      <div class="sidebar-footer">
+        <div class="font-size-changer">
+          <button class="font-btn" data-size="small" title="Small Font">A</button>
+          <button class="font-btn active" data-size="medium" title="Medium Font">A</button>
+          <button class="font-btn" data-size="large" title="Large Font">A</button>
+        </div>
       </div>
-
-      <!-- Bottom section removed as requested to move settings up -->
     </aside>
 
     <!-- Main Content -->
@@ -183,6 +185,33 @@
         </div>
       </footer>
     </main>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay"
+      style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-primary); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 2rem;">
+      <div
+        style="background: var(--bg-secondary); padding: 2rem; border-radius: 16px; border: 1px solid var(--border); width: 100%; max-width: 320px; text-align: center;">
+        <h2 style="margin-bottom: 0.5rem;">Secure Access</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your personal
+          password to continue.</p>
+        <div style="position: relative; margin-bottom: 1rem;">
+          <input type="password" id="login-password" placeholder="App Password"
+            style="width: 100%; padding: 0.75rem; padding-right: 2.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); outline: none;">
+          <button id="toggle-password"
+            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;">
+            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
+              fill="currentColor">
+              <path
+                d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 228q113 0 207.5-58.5T833-500q-47-71-141.5-129.5T480-688q-113 0-207.5 58.5T127-500q47 71 141.5 129.5T480-272Z" />
+            </svg>
+          </button>
+        </div>
+        <button id="login-btn"
+          style="width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: var(--accent); color: white; font-weight: 600; cursor: pointer;">Connect</button>
+        <p id="login-error" style="color: var(--error); font-size: 0.8rem; margin-top: 1rem; display: none;">Invalid
+          password</p>
+      </div>
+    </div>
   </div>
 
   <script src="app.js?v=3"></script>

@@ -13,9 +13,20 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Auth Middleware
+const APP_PASSWORD = process.env.APP_PASSWORD;
+
+function authMiddleware(req, res, next) {
+    if (!APP_PASSWORD) return next(); // No password set = allow all
+
+    const providedPassword = req.headers['x-app-password'];
+    if (providedPassword === APP_PASSWORD) return next();
+
+    res.status(401).json({ error: 'Unauthorized. Password required.' });
+}
 
 // Global state
 let currentMode = 'detecting'; // 'local', 'cloud', 'none'
@@ -108,15 +119,28 @@ function getLanIp() {
 
 // --- API Routes ---
 
-// Status Check
+// Status Check (Always public)
 app.get('/api/status', (req, res) => {
     res.json({
         mode: currentMode,
         connected: currentMode !== 'none',
         lanIp: getLanIp(),
-        port: PORT
+        port: PORT,
+        authRequired: !!APP_PASSWORD // Tell frontend if auth is needed
     });
 });
+
+// Login/Verify Endpoint
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    if (!APP_PASSWORD || password === APP_PASSWORD) {
+        return res.json({ success: true });
+    }
+    res.status(401).json({ error: 'Invalid password' });
+});
+
+// Apply auth to all other API routes
+app.use('/api', authMiddleware);
 
 // List Models
 app.get('/api/models', async (req, res) => {

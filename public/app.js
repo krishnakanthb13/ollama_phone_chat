@@ -7,7 +7,18 @@ const state = {
     isSidebarOpen: false,
     isConnected: false,
     isSending: false, // Track sending state
-    models: []
+    models: [],
+    appPassword: localStorage.getItem('appPassword') || ''
+};
+
+// Global Fetch Wrapper to include Auth Header
+const originalFetch = window.fetch;
+window.fetch = function (url, options = {}) {
+    if (state.appPassword && url.toString().startsWith('/api')) {
+        options.headers = options.headers || {};
+        options.headers['X-App-Password'] = state.appPassword;
+    }
+    return originalFetch(url, options);
 };
 
 // ... (DOM elements)
@@ -254,7 +265,18 @@ const dom = {
 
 // --- Initialization ---
 async function init() {
-    checkStatus();
+    const status = await checkStatus();
+
+    if (status && status.authRequired && !state.appPassword) {
+        showLogin();
+        setupLoginEvents();
+        return;
+    }
+
+    await completeInit();
+}
+
+async function completeInit() {
     await loadModels();
     await loadChatList();
 
@@ -272,7 +294,6 @@ async function init() {
     if (savedThinking !== null) {
         dom.thinkingToggle.checked = (savedThinking === 'true');
 
-        // Sync button visual if exists
         const thinkingBtn = document.getElementById('thinking-btn');
         if (thinkingBtn) {
             thinkingBtn.style.backgroundColor = (savedThinking === 'true') ? 'var(--accent)' : 'var(--bg-tertiary)';
@@ -280,15 +301,16 @@ async function init() {
         }
     }
 
-    // Search Toggle Init (Default OFF)
     const savedSearch = localStorage.getItem('enableSearch');
-    // Default to false if not set
     const isSearchOn = savedSearch === 'true';
     const searchBtn = document.getElementById('search-btn');
     if (searchBtn) {
         searchBtn.style.backgroundColor = isSearchOn ? 'var(--accent)' : 'var(--bg-tertiary)';
         searchBtn.style.color = isSearchOn ? 'white' : 'var(--text-secondary)';
     }
+
+    const savedFontSize = localStorage.getItem('fontSize') || 'medium';
+    setFontSize(savedFontSize);
 }
 
 // --- API Calls ---
@@ -298,9 +320,11 @@ async function checkStatus() {
         const data = await res.json();
         state.isConnected = data.connected;
         updateStatusUI();
+        return data;
     } catch (e) {
         state.isConnected = false;
         updateStatusUI();
+        return null;
     }
 }
 
@@ -712,9 +736,36 @@ function setupEventListeners() {
         updateSendButtonState();
     });
 
+    dom.textInput.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        updateSendButtonState();
+    });
+
+    // Font Size buttons
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        btn.addEventListener('click', () => setFontSize(btn.dataset.size));
+    });
+
     window.loadChat = loadChat;
     window.deleteChat = deleteChat;
     window.setQualityPreset = setQualityPreset;
+}
+
+function setFontSize(size) {
+    const sizes = {
+        'small': '14px',
+        'medium': '16px',
+        'large': '18px'
+    };
+    document.documentElement.style.fontSize = sizes[size];
+    localStorage.setItem('fontSize', size);
+
+    // Update UI
+    document.querySelectorAll('.font-btn').forEach(btn => {
+        if (btn.dataset.size === size) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
 }
 
 function setQualityPreset(value) {
@@ -731,6 +782,62 @@ function setQualityPreset(value) {
     // Close modal
     const qualityModal = document.getElementById('quality-modal');
     if (qualityModal) qualityModal.classList.remove('active');
+}
+
+function showLogin() {
+    const loginOverlay = document.getElementById('login-overlay');
+    if (loginOverlay) loginOverlay.style.display = 'flex';
+}
+
+function setupLoginEvents() {
+    const loginBtn = document.getElementById('login-btn');
+    const loginInput = document.getElementById('login-password');
+    const toggleBtn = document.getElementById('toggle-password');
+
+    if (loginBtn) {
+        loginBtn.onclick = handleLogin;
+    }
+    if (loginInput) {
+        loginInput.onkeydown = (e) => { if (e.key === 'Enter') handleLogin(); };
+    }
+    if (toggleBtn) {
+        toggleBtn.onclick = () => {
+            const type = loginInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            loginInput.setAttribute('type', type);
+            // Toggle eye icon path for visual feedback
+            const eyeIcon = document.getElementById('eye-icon');
+            if (type === 'text') {
+                eyeIcon.innerHTML = `<path d="m644-428-58-58q9-47-27-83t-83-27l-58-58q9-2 18-2 75 0 127.5 52.5T660-500q0 9-2 18Zm124 124-58-58q38-43 68-89t47-89q-51-125-162-197t-233-72q-28 0-56 3t-55 9l-61-61q41-17 85-25.5t90-8.5q151 0 274.5 83T920-500q-26 71-70.5 133T768-304Zm43 192L674-249q-45 22-93.5 35.5T480-200q-151 0-274.5-83T40-500q21-57 58-106.5t88-91.5l-122-122 56-56 716 716-56 56-328-328Zm-226-226L410-513q-13 1-24.5 9.5T372-482q1 24 18 41t41 18q14-1 22.5-12.5T462-461Zm-114-114-63-63q-26 27-48 57t-38 61q51 125 162 197t233 72q29 0 57.5-3.5t56.5-10.5l-51-51q-15 4-31 6t-32 2q-75 0-127.5-52.5T300-500q0-16 2-32t6-31Z"/>`;
+            } else {
+                eyeIcon.innerHTML = `<path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 228q113 0 207.5-58.5T833-500q-47-71-141.5-129.5T480-688q-113 0-207.5 58.5T127-500q47 71 141.5 129.5T480-272Z"/>`;
+            }
+        };
+    }
+}
+
+async function handleLogin() {
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-App-Password': password },
+            body: JSON.stringify({ password })
+        });
+
+        if (res.ok) {
+            state.appPassword = password;
+            localStorage.setItem('appPassword', password);
+            document.getElementById('login-overlay').style.display = 'none';
+            // Resume init properly
+            await completeInit();
+        } else {
+            errorEl.style.display = 'block';
+        }
+    } catch (e) {
+        errorEl.style.display = 'block';
+    }
 }
 
 // --- Helpers ---

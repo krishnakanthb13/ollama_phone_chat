@@ -140,6 +140,54 @@ body {
   opacity: 1;
 }
 
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.font-size-changer {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.font-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.font-btn:hover {
+  color: var(--text-primary);
+}
+
+.font-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.font-btn[data-size="small"] {
+  font-size: 0.75rem;
+}
+
+.font-btn[data-size="medium"] {
+  font-size: 0.9rem;
+}
+
+.font-btn[data-size="large"] {
+  font-size: 1.1rem;
+}
+
 /* --- Main Content --- */
 #main-content {
   flex: 1;

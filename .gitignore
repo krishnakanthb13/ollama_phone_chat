@@ -17,3 +17,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Notes
+RELEASE_NOTES.md
+SOCIAL_MEDIA_KIT.md
