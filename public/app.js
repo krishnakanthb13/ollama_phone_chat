@@ -561,6 +561,11 @@ function isCloudModel(model) {
     if (model && typeof model === 'object' && typeof model.cloud === 'boolean') {
         return model.cloud;
     }
+    // Local Ollama proxies cloud models it does not host; they carry the
+    // upstream host even when the name has no `:cloud` suffix.
+    if (model && typeof model === 'object' && typeof model.remote_host === 'string' && model.remote_host.trim()) {
+        return true;
+    }
     const name = typeof model === 'string' ? model : model && model.name;
     return /(?:^|[:\-])cloud$/i.test(String(name || '').trim());
 }
@@ -571,7 +576,9 @@ function normalizeCloudName(name) {
 
 function isFreeCloudModel(model) {
     if (!isCloudModel(model)) return false;
-    const name = typeof model === 'string' ? model : model && model.name;
+    // Proxied entries keep the upstream name in `remote_model` (`gemma4:cloud`
+    // is really `gemma4:31b`), which is what the free list is keyed by.
+    const name = typeof model === 'string' ? model : model && (model.remote_model || model.name);
     return FREE_CLOUD_MODELS.has(normalizeCloudName(name));
 }
 
@@ -664,16 +671,27 @@ function renderModelSelect() {
     if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortOrder === 'desc') sorted.sort((a, b) => b.name.localeCompare(a.name));
 
-    // Local, free cloud, and plan cloud models are listed in separate groups so
-    // the cost of a choice is visible before it is sent.
+    // Free cloud models lead the list so the no-cost choices are visible
+    // first; local and plan cloud models follow in separate groups so the
+    // cost of a choice is visible before it is sent.
     const groups = [
-        { key: 'local', label: 'Local', tier: '', models: [] },
         { key: 'free', label: 'Cloud', tier: 'free', models: [] },
+        { key: 'local', label: 'Local', tier: '', models: [] },
         { key: 'paid', label: 'Cloud', tier: 'paid', models: [] },
     ];
+    const seen = new Set();
     for (const model of sorted) {
-        if (!isCloudModel(model)) groups[0].models.push(model);
-        else if (isFreeCloudModel(model)) groups[1].models.push(model);
+        const cloud = isCloudModel(model);
+        // Local Ollama can list the same cloud model under two aliases
+        // (`gemma4:cloud` and `gemma4:31b-cloud`); key cloud entries by their
+        // upstream name so only one row is shown.
+        const key = cloud
+            ? `cloud:${normalizeCloudName((model && model.remote_model) || model.name)}`
+            : `local:${model.name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!cloud) groups[1].models.push(model);
+        else if (isFreeCloudModel(model)) groups[0].models.push(model);
         else groups[2].models.push(model);
     }
 
@@ -711,6 +729,19 @@ function renderModelSelect() {
 
         for (const model of group.models) {
             section.appendChild(createModelOption(model));
+        }
+
+        if (group.key === 'paid') {
+            const note = document.createElement('p');
+            note.className = 'model-group-note';
+            note.append('Add usage credits to pay as you go, or upgrade to use any cloud model. ');
+            const link = document.createElement('a');
+            link.href = 'https://ollama.com/settings';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'ollama.com/settings';
+            note.appendChild(link);
+            section.appendChild(note);
         }
 
         modelList.appendChild(section);

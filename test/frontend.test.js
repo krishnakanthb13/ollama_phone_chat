@@ -272,7 +272,7 @@ test('groups local, free cloud, and paid cloud models separately', async () => {
     'model list to load');
 
   const groups = [...doc.querySelectorAll('.model-group')];
-  assert.deepEqual(groups.map((group) => group.dataset.group), ['local', 'free', 'paid']);
+  assert.deepEqual(groups.map((group) => group.dataset.group), ['free', 'local', 'paid']);
 
   const namesIn = (key) => [...doc.querySelectorAll(`.model-group[data-group="${key}"] .model-name`)]
     .map((element) => element.textContent);
@@ -282,6 +282,11 @@ test('groups local, free cloud, and paid cloud models separately', async () => {
 
   assert.equal(doc.querySelector('.model-group[data-group="free"] .tier-chip').textContent, 'Free');
   assert.equal(doc.querySelector('.model-group[data-group="paid"] .tier-chip').textContent, 'Paid');
+
+  // The paid group points at the account page for credits and upgrades.
+  const note = doc.querySelector('.model-group[data-group="paid"] .model-group-note');
+  assert.match(note.textContent, /Add usage credits to pay as you go, or upgrade/);
+  assert.equal(note.querySelector('a').href, 'https://ollama.com/settings');
 
   // The empty state names the cost of the selected cloud model.
   doc.querySelector('.model-option[data-value="glm-4.7:cloud"]').click();
@@ -311,7 +316,7 @@ test('groups cloud catalog models that carry no cloud suffix', async () => {
     'model list to load');
 
   const groups = [...doc.querySelectorAll('.model-group')];
-  assert.deepEqual(groups.map((group) => group.dataset.group), ['local', 'free', 'paid']);
+  assert.deepEqual(groups.map((group) => group.dataset.group), ['free', 'local', 'paid']);
 
   const namesIn = (key) => [...doc.querySelectorAll(`.model-group[data-group="${key}"] .model-name`)]
     .map((element) => element.textContent);
@@ -324,6 +329,51 @@ test('groups cloud catalog models that carry no cloud suffix', async () => {
 
   doc.querySelector('.model-option[data-value="gemma4:31b"]').click();
   assert.match(doc.querySelector('.empty-note').textContent, /free plan/);
+});
+
+test('groups cloud models proxied by local Ollama under free and paid', async () => {
+  // `ollama connect` makes local Ollama serve cloud models with the upstream
+  // host attached; the free list is keyed by the upstream (`remote_model`)
+  // name, not the proxied `:cloud` alias.
+  const connected = (name, remote_model) => (
+    { name, cloud: true, remote_model, remote_host: 'https://ollama.com' });
+  const { window } = boot({
+    models: [
+      { name: 'llama3:8b', cloud: false },
+      connected('beam:cloud', 'beam'),
+      connected('gemma4:cloud', 'gemma4:31b'),
+      connected('gemma4:31b-cloud', 'gemma4:31b'),
+      connected('gpt-oss:120b-cloud', 'gpt-oss:120b'),
+      connected('gpt-oss:20b-cloud', 'gpt-oss:20b'),
+      connected('nemotron-3-nano:30b-cloud', 'nemotron-3-nano:30b'),
+      connected('nemotron-3-super:cloud', 'nemotron-3-super'),
+      connected('nemotron-3-ultra:cloud', 'nemotron-3-ultra'),
+      connected('kimi-k3:cloud', 'kimi-k3'),
+      // A proxied model with no `:cloud` suffix and no server tag.
+      { name: 'gemini-3-flash-preview:latest', remote_host: 'https://ollama.com' },
+    ],
+  });
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const groups = [...doc.querySelectorAll('.model-group')];
+  assert.deepEqual(groups.map((group) => group.dataset.group), ['free', 'local', 'paid']);
+
+  const namesIn = (key) => [...doc.querySelectorAll(`.model-group[data-group="${key}"] .model-name`)]
+    .map((element) => element.textContent);
+  assert.deepEqual(namesIn('local'), ['llama3:8b']);
+  assert.deepEqual(namesIn('free'), [
+    'beam:cloud',
+    'gemma4:cloud',
+    'gpt-oss:120b-cloud',
+    'gpt-oss:20b-cloud',
+    'nemotron-3-nano:30b-cloud',
+    'nemotron-3-super:cloud',
+    'nemotron-3-ultra:cloud',
+  ]);
+  // The default sort preserves server order, and gemini was listed last.
+  assert.deepEqual(namesIn('paid'), ['kimi-k3:cloud', 'gemini-3-flash-preview:latest']);
 });
 
 test('streams a reply, renders Markdown, and resets the send button', async () => {

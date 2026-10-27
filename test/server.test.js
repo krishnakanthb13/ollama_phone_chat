@@ -157,8 +157,10 @@ test('lists models and streams a persisted chat', async () => {
   const models = await (await fetch(`${base}/api/models`, { headers: AUTH })).json();
   assert.equal(models.source, 'local');
   assert.ok(models.models.some((model) => model.name === 'llama3:8b'));
-  assert.ok(models.models.every((model) => model.cloud === false),
-    'local models must not be tagged as cloud');
+  const byName = Object.fromEntries(models.models.map((model) => [model.name, model]));
+  assert.equal(byName['llama3:8b'].cloud, false, 'local models must not be tagged as cloud');
+  assert.equal(byName['glm-4.7:cloud'].cloud, true,
+    'local entries with a :cloud suffix are proxied cloud models');
 
   const cache = JSON.parse(fs.readFileSync(process.env.MODELS_CACHE, 'utf8'));
   assert.equal(cache.source, 'local');

@@ -1534,6 +1534,18 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.model-group-note {
+  margin: 4px 12px 6px;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.model-group-note a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .model-option {
   display: flex;
   align-items: center;

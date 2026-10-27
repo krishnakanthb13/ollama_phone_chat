@@ -1,90 +1,76 @@
-# Release Notes — v0.0.17
+# Release Notes — v0.0.18
 
 **Ollama Phone Chat** is a local-first bridge for chatting with Ollama models
 from a phone on the same Wi-Fi network. The server runs on your computer, the
 UI runs in the phone's browser, and no account or third-party service is
 involved.
 
-This release is about comfort: a smaller text scale, five palettes to read in
-besides the system one, and unsent drafts that no longer disappear when you
-switch conversations or reload the page.
+This release is about knowing what a model costs before you send: the free
+cloud models now lead the model picker in their own group, and cloud models
+that your local Ollama proxies are recognised as cloud instead of being
+buried under "Local".
 
 ---
 
-## 🔤 Text size
+## ☁️ Free cloud models first
 
-The scale shifted down one step and gained a floor:
+The picker now lists groups in this order:
 
-| Button | Before | Now |
-| :--- | :--- | :--- |
-| A (small) | 14px | **12px** |
-| A (medium) | 16px | **14px** |
-| A (large) | 18px | **16px** |
+1. **Cloud · Free** — the models that draw from free usage, with a green
+   `Free` chip;
+2. **Local** — models running on your machine;
+3. **Cloud · Paid** — everything else, with an amber `Paid` chip.
 
-Everything in the interface is sized in `rem`, so one click rescales the
-composer, the transcript, the sidebar, and the dialogs together. The choice is
-still stored under `fontSize`, so existing visitors keep their preference
-position; `medium` remains the default.
+The free group is keyed by Ollama's published free-usage list: `beam`,
+`gemma4:31b`, `gpt-oss:120b`, `gpt-oss:20b`, `nemotron-3-nano:30b`,
+`nemotron-3-super`, and `nemotron-3-ultra`. The paid group ends with a note —
+"Add usage credits to pay as you go, or upgrade to use any cloud model" — that
+links to [ollama.com/settings](https://ollama.com/settings).
 
-## 🎨 Palettes
+## 🔌 Proxied cloud models are recognised
 
-The theme toggle now cycles **Auto → Light → Sage → Dark → Ember → Midnight**:
+When the Ollama app connects cloud models to your local daemon
+(`ollama connect`), `/api/tags` returns them with a `remote_host` pointing at
+`ollama.com` — often with a `:cloud` suffix, but not always
+(`gemini-3-flash-preview:latest`). The server tagged every local-mode entry as
+`cloud: false`, so the whole catalog landed under **Local** and the cloud
+groups never appeared.
 
-- **Light** — warm paper with a teal accent (unchanged).
-- **Sage** — herb-garden daylight: soft greens and a deep leaf accent.
-- **Dark** — deep petrol with verdigris (the signal-desk palette, unchanged).
-- **Ember** — plum ink lit by warm amber.
-- **Midnight** — deep navy with an ice-blue accent.
-
-Auto still leaves the `data-theme` attribute off so `prefers-color-scheme`
-decides; explicit themes set it and therefore win over the system. The two
-`theme-color` meta tags follow the active palette, so the browser chrome on a
-phone matches the page instead of flashing the wrong colour. The chosen theme
-is stored under `theme` as before.
-
-## ✍️ Draft autosave
-
-Unsent text is now kept per conversation:
-
-- typing stores the composer under `drafts` in `localStorage`, keyed by `new`
-  for a conversation that has not been sent yet and `chat:<id>` afterwards;
-- switching chats parks the current draft and restores the target's, so a
-  half-written question never lands in the wrong conversation;
-- sending consumes only the active draft;
-- the history list shows a small **Draft** badge on conversations that hold
-  unsent text, updated in place without re-rendering the list;
-- if the first message is still starting when you type the next one, the text
-  is moved to the new chat id as soon as the server creates it;
-- storage problems (private mode, full quota) are swallowed: drafts are
-  best-effort and never break chatting.
+`/api/models` now tags an entry as cloud when the source is the cloud
+catalog, when it carries a `remote_host`, or when its name ends in
+`:cloud`/`-cloud`. Free-tier matching prefers `remote_model`, so the proxied
+alias `gemma4:cloud` resolves to `gemma4:31b`, and the client falls back to
+`remote_host` for caches written without a server tag. Aliases of the same
+upstream model (`gemma4:cloud` and `gemma4:31b-cloud`) are deduplicated by
+upstream name, so the free group shows exactly one row per model.
 
 ## 🧪 Testing
 
-`npm test` now runs 29 `node:test` assertions. New jsdom coverage:
+`npm test` now runs 31 `node:test` assertions. New coverage:
 
-- the three text sizes apply 12px / 14px / 16px to the root, persist the
-  choice, and move the active state;
-- the theme button visits all five palettes in order, updates the label and
-  both `theme-color` metas, then returns to Auto with the media-scoped colours
-  restored;
-- drafts survive a chat switch and a new conversation, show the history badge,
-  and are cleared only for the conversation that was sent.
+- `test/local-connected-models.test.js` (new): boots a real server in local
+  mode against a mock daemon serving proxied entries and asserts that
+  `remote_host`/`:cloud` entries are tagged `cloud: true` while plain local
+  models stay `false`;
+- `test/frontend.test.js`: a jsdom case feeds the proxied shapes
+  (`beam:cloud`, `gemma4:cloud` with `remote_model`, an unsuffixed
+  `remote_host` entry) and asserts the free/local/paid order, free membership,
+  alias deduplication, and the paid settings link;
+- `test/server.test.js`: the local-mode mock's `glm-4.7:cloud` entry must now
+  be tagged cloud while `llama3:8b` stays local.
 
-The interaction smoke pass (16 checks) and the existing server, security, and
-cloud-model suites still pass. Palettes, drafts, and the picker were checked in
-headless Chrome at 1440×900 and 500×900, including Auto following a light and a
-dark system preference.
+Verified against a live local daemon: all 61 catalog entries came back with
+correct tags and all seven free models grouped under **Cloud · Free**.
 
 ---
 
 ## ⚙️ Upgrade notes
 
 - Restart the server and hard-refresh once. `styles.css` is now requested as
-  `?v=6` and `app.js` as `?v=7`.
-- No configuration, API, or database changes. Existing `theme` (`light`,
-  `dark`) and `fontSize` values remain valid; `large` now means 16px.
-- If you had custom CSS pinned to the old `:root:not([data-theme='dark'])`
-  selector, note the auto-light block is now `:root:not([data-theme])`.
+  `?v=7` and `app.js` as `?v=8`.
+- No configuration, API, or database changes. The free-model list stays in
+  `FREE_CLOUD_MODELS` at the top of `app.js` if Ollama changes it.
+- The paid group's settings link opens in a new tab; nothing else moved.
 
 ## 🚀 Getting started
 

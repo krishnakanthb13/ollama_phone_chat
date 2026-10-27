@@ -200,17 +200,22 @@ function loadModelsFromCache() {
 }
 
 // Cloud catalogs (`https://ollama.com/api/tags`) use plain names such as
-// `gemma4:31b`; only the CLI appends `:cloud`. The source is therefore known
-// here but not in the name, so tag every entry before sending it on. When the
-// origin is unknown (an old cache without a source), leave the field off and
-// let the client fall back to the suffix heuristic.
+// `gemma4:31b`; only the CLI appends `:cloud`. Local Ollama can also serve
+// cloud models it proxies (connected with `ollama connect`), which carry a
+// `remote_host` field and usually the `:cloud` suffix. Tag every entry so the
+// picker can group them without guessing from the name. When the origin is
+// unknown (an old cache without a source), leave the field off and let the
+// client fall back to the suffix heuristic.
 function annotateModels(models, source) {
     if (!Array.isArray(models)) return [];
     if (source !== 'local' && source !== 'cloud') return models;
-    const cloud = source === 'cloud';
-    return models.map((model) => (
-        model && typeof model === 'object' ? { ...model, cloud } : model
-    ));
+    return models.map((model) => {
+        if (!model || typeof model !== 'object') return model;
+        const cloud = source === 'cloud'
+            || Boolean(model.remote_host)
+            || /(?:^|[:\-])cloud$/i.test(String(model.name || '').trim());
+        return { ...model, cloud };
+    });
 }
 
 // --- Ollama detection ---

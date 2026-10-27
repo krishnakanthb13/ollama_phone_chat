@@ -20,7 +20,7 @@
 -   **Safe Rendering**: Model output is sanitized and titles are rendered as text, not HTML.
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
--   **Cloud Cost Clarity**: The model picker groups local models, free-tier cloud models, and plan-only cloud models separately, so the cost of a choice is visible before you send. The empty state repeats it for the selected cloud model.
+-   **Cloud Cost Clarity**: The model picker lists free-tier cloud models in their own group at the top, followed by local models and plan-only cloud models, so the cost of a choice is visible before you send. The paid group links to [ollama.com/settings](https://ollama.com/settings) for credits or upgrades, and the empty state repeats the tier for the selected cloud model.
 -   **Font Size Controls**: Three text scales (12px / 14px / 16px) that rescale the whole interface, remembered across visits.
 -   **Draft Autosave**: Unsent text is kept per conversation, restored when you come back, and flagged with a Draft badge in the history list.
 -   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
