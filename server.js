@@ -6,8 +6,13 @@ const os = require('os');
 const qrcode = require('qrcode-terminal');
 const db = require('./db');
 
-// Dynamic import for node-fetch
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// Node.js 18+ ships a global fetch implementation. Using it removes the
+// undeclared `node-fetch` dependency that previously broke every chat request
+// after a clean `npm install`.
+if (typeof globalThis.fetch !== 'function') {
+    console.error('[FATAL] Node.js 18 or newer is required (global fetch is unavailable).');
+    process.exit(1);
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -285,10 +290,11 @@ app.post('/api/chat', async (req, res) => {
         let assistantThinking = '';
 
         let buffer = '';
+        const decoder = new TextDecoder();
 
         // Process the stream
         for await (const chunk of response.body) {
-            buffer += chunk.toString();
+            buffer += decoder.decode(chunk, { stream: true });
             const lines = buffer.split('\n');
 
             // Keep the last line in buffer as it might be incomplete
@@ -319,6 +325,9 @@ app.post('/api/chat', async (req, res) => {
                 }
             }
         }
+
+        // Flush any bytes held back by the streaming decoder (partial UTF-8)
+        buffer += decoder.decode();
 
         // Process any remaining buffer (shouldn't be any for valid ndjson but good practice)
         if (buffer.trim()) {

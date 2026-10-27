@@ -71,9 +71,9 @@ Uses `sqlite3` to manage two primary tables:
 ### Runtime
 - `express`: Web server framework.
 - `sqlite3`: Database engine.
-- `node-fetch`: For communicating with the Ollama API.
 - `qrcode-terminal`: Generates QR codes for easy mobile connection.
 - `dotenv`: Environment variable management.
+- `fetch`: Built into Node.js 18+ (no external HTTP client dependency).
 
 ### Frontend
 - `marked`: Markdown parsing.
