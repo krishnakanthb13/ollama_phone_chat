@@ -3,9 +3,11 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="description" content="Chat with local or cloud Ollama models from your phone.">
   <title>Ollama Connect</title>
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 </head>
@@ -20,7 +22,7 @@
     <aside id="sidebar">
       <div class="sidebar-header">
         <h3>Chats</h3>
-        <button id="close-sidebar-btn" class="menu-btn" style="font-size: 1rem;">✕</button>
+        <button id="close-sidebar-btn" class="menu-btn" style="font-size: 1rem;" aria-label="Close chat list">✕</button>
       </div>
 
       <button class="new-chat-btn" id="new-chat-btn">
@@ -36,9 +38,9 @@
 
       <div class="sidebar-footer">
         <div class="font-size-changer">
-          <button class="font-btn" data-size="small" title="Small Font">A</button>
-          <button class="font-btn active" data-size="medium" title="Medium Font">A</button>
-          <button class="font-btn" data-size="large" title="Large Font">A</button>
+          <button class="font-btn" data-size="small" title="Small Font" aria-label="Small font">A</button>
+          <button class="font-btn active" data-size="medium" title="Medium Font" aria-label="Medium font">A</button>
+          <button class="font-btn" data-size="large" title="Large Font" aria-label="Large font">A</button>
         </div>
       </div>
     </aside>
@@ -47,7 +49,7 @@
     <main id="main-content">
       <header>
         <!-- Left: Menu Button -->
-        <button class="menu-btn" id="menu-btn">
+        <button class="menu-btn" id="menu-btn" aria-label="Open chat list">
           <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
             fill="currentColor">
             <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
@@ -58,31 +60,33 @@
         <!-- Center: Model Selector & Controls -->
         <div class="model-selector-container"
           style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
-          <div class="model-selector" id="model-selector-btn">
+          <button type="button" class="model-selector" id="model-selector-btn" aria-label="Select model">
             <span id="current-model-name" style="flex: 1; text-align: center;">Loading...</span>
             <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
-              fill="currentColor">
+              fill="currentColor" aria-hidden="true">
               <path d="M480-360 280-560h400L480-360Z" />
             </svg>
-          </div>
+          </button>
 
           <!-- Interactive Controls (Always visible as requested) -->
           <div id="header-controls" style="display: flex; align-items: center; gap: 6px;">
-            <button id="search-btn" class="icon-btn" title="Toggle Web Search"
+            <button id="search-btn" class="icon-btn" title="Toggle Web Search" aria-label="Toggle web search"
+              aria-pressed="false"
               style="background: var(--bg-tertiary); border-radius: 50%; width: 32px; height: 32px; border: 1px solid var(--border); font-size: 0.8rem; color: var(--text-secondary);">
               🌐
             </button>
-            <button id="thinking-btn" class="icon-btn" title="Toggle Thinking"
+            <button id="thinking-btn" class="icon-btn" title="Toggle Thinking" aria-label="Toggle thinking output"
+              aria-pressed="false"
               style="background: var(--bg-tertiary); border-radius: 50%; width: 32px; height: 32px; border: 1px solid var(--border); font-size: 0.8rem;">
               🧠
             </button>
-            <div class="quality-selector" id="quality-selector-btn">
+            <button type="button" class="quality-selector" id="quality-selector-btn" aria-label="Reasoning quality">
               <span id="current-quality-name">Std</span>
               <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px"
-                fill="currentColor">
+                fill="currentColor" aria-hidden="true">
                 <path d="M480-360 280-560h400L480-360Z" />
               </svg>
-            </div>
+            </button>
             <!-- Hidden original select for background logic compatibility -->
             <select id="quality-select" style="display: none;">
               <option value="none">Std</option>
@@ -98,25 +102,25 @@
           <div class="model-modal-content" style="max-width: 300px;">
             <div class="model-modal-header">
               <h3>Reasoning Quality</h3>
-              <button class="close-modal-btn" id="close-quality-modal">×</button>
+              <button class="close-modal-btn" id="close-quality-modal" aria-label="Close reasoning quality">×</button>
             </div>
             <div class="model-list-container">
-              <div class="model-option" onclick="setQualityPreset('none')">
+              <div class="model-option" data-quality="none" role="button" tabindex="0">
                 <div class="model-info">
                   <span class="model-name">≡ Standard</span>
                 </div>
               </div>
-              <div class="model-option" onclick="setQualityPreset('low')">
+              <div class="model-option" data-quality="low" role="button" tabindex="0">
                 <div class="model-info">
                   <span class="model-name">≡ Low Reasoning</span>
                 </div>
               </div>
-              <div class="model-option" onclick="setQualityPreset('medium')">
+              <div class="model-option" data-quality="medium" role="button" tabindex="0">
                 <div class="model-info">
                   <span class="model-name">≡ Med Reasoning</span>
                 </div>
               </div>
-              <div class="model-option" onclick="setQualityPreset('high')">
+              <div class="model-option" data-quality="high" role="button" tabindex="0">
                 <div class="model-info">
                   <span class="model-name">≡ High Reasoning</span>
                 </div>
@@ -130,7 +134,7 @@
           <div class="model-modal-content">
             <div class="model-modal-header">
               <h3>Select Model</h3>
-              <button class="close-modal-btn" id="close-model-modal">×</button>
+              <button class="close-modal-btn" id="close-model-modal" aria-label="Close model list">×</button>
             </div>
             <div class="sorting-controls">
               <button class="sort-btn active" id="sort-default">
@@ -152,7 +156,7 @@
 
         <!-- Right: New Chat & Status -->
         <div style="display: flex; align-items: center; gap: 10px;">
-          <button class="icon-btn" id="header-new-chat-btn" title="New Chat">
+          <button class="icon-btn" id="header-new-chat-btn" title="New Chat" aria-label="New chat">
             <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
               fill="currentColor">
               <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
@@ -166,18 +170,16 @@
       </header>
 
       <div id="chat-container">
-        <div id="messages-area">
+        <div id="messages-area" role="log" aria-live="polite" aria-label="Conversation">
           <!-- Messages injected here -->
-          <div class="message assistant-msg" style="opacity: 0.5; text-align: center; margin-top: 2rem;">
-            <div class="message-content">Start a conversation</div>
-          </div>
+          <div class="empty-state">Start a conversation</div>
         </div>
       </div>
 
       <footer>
         <div class="input-wrapper">
-          <textarea id="user-input" rows="1" placeholder="Message Ollama..."></textarea>
-          <button id="send-btn" disabled>
+          <textarea id="user-input" rows="1" placeholder="Message Ollama..." aria-label="Message"></textarea>
+          <button id="send-btn" disabled aria-label="Send message">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
             </svg>
@@ -187,7 +189,7 @@
     </main>
 
     <!-- Login Overlay -->
-    <div id="login-overlay"
+    <div id="login-overlay" role="dialog" aria-modal="true" aria-label="Sign in"
       style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-primary); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 2rem;">
       <div
         style="background: var(--bg-secondary); padding: 2rem; border-radius: 16px; border: 1px solid var(--border); width: 100%; max-width: 320px; text-align: center;">
@@ -195,9 +197,10 @@
         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your personal
           password to continue.</p>
         <div style="position: relative; margin-bottom: 1rem;">
-          <input type="password" id="login-password" placeholder="App Password"
+          <input type="password" id="login-password" placeholder="App Password" aria-label="App password"
             style="width: 100%; padding: 0.75rem; padding-right: 2.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); outline: none;">
           <button id="toggle-password"
+            aria-label="Show or hide password"
             style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;">
             <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
               fill="currentColor">
@@ -208,13 +211,13 @@
         </div>
         <button id="login-btn"
           style="width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: var(--accent); color: white; font-weight: 600; cursor: pointer;">Connect</button>
-        <p id="login-error" style="color: var(--error); font-size: 0.8rem; margin-top: 1rem; display: none;">Invalid
+        <p id="login-error" role="alert" style="color: var(--error); font-size: 0.8rem; margin-top: 1rem; display: none;">Invalid
           password</p>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 
 </html>

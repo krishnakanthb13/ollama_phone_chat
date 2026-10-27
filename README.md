@@ -14,6 +14,8 @@
 -   **Zero-Config Connection**: Just scan the QR code in your terminal and start chatting.
 -   **Mobile-First Design**: A premium, responsive interface designed for thumbs and small screens.
 -   **"Thinking" Support**: Visualize the reasoning process of models (like DeepSeek) in real-time.
+-   **Stop Generation**: Cancel a streaming reply at any time without losing the partial answer.
+-   **Safe Rendering**: Model output is sanitized and titles are rendered as text, not HTML.
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
 -   **Font Size Controls**: Three adjustable text sizes (Small/Med/Large) for optimal readability.

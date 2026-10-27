@@ -75,6 +75,15 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
     -   The assistant message is saved once, when Ollama reports `done`.
 4.  **UI Updates**: `app.js` parses the SSE stream, renders Markdown using `marked`, and sanitizes output with `DOMPurify`.
 
+### Frontend (`public/app.js`)
+- Rendering is DOM-based. Chat titles, user messages, and thinking blocks use `textContent`; assistant Markdown is sanitized with `DOMPurify`, so stored model output cannot inject HTML or scripts.
+- The SSE reader decodes bytes incrementally, supports multi-line `data:` events, and ignores heartbeat comments and non-JSON noise.
+- Markdown is repainted at most once per animation frame, which keeps long replies responsive on phones without re-parsing the whole document for every token.
+- Sending uses a per-message `clientMessageId` so retries cannot duplicate the user turn. Context is trimmed to the last 40 messages / ~24k characters.
+- The send button becomes a stop button while streaming and aborts the fetch; the server keeps the partial reply.
+- A `401` clears the stored password and returns to the login screen. A saved password is verified against `/api/auth/verify` before use.
+- Timestamps from SQLite are treated as UTC. Interactions are keyboard accessible, and toggles expose `aria-pressed`.
+
 ---
 
 ## Dependencies
