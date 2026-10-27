@@ -138,6 +138,110 @@ test('vendored libraries parse Markdown and strip event handlers', () => {
   assert.ok(!window.DOMPurify.sanitize('<img src=x onerror="alert(1)">').includes('onerror'));
 });
 
+test('scales text from 12px to 16px across three steps', async () => {
+  const { window } = boot();
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const root = doc.documentElement;
+  assert.equal(root.style.fontSize, '14px', 'medium is the default middle size');
+
+  const small = doc.querySelector('.font-btn[data-size="small"]');
+  small.click();
+  assert.equal(root.style.fontSize, '12px');
+  assert.ok(small.classList.contains('active'));
+  assert.equal(window.localStorage.getItem('fontSize'), 'small');
+
+  const medium = doc.querySelector('.font-btn[data-size="medium"]');
+  medium.click();
+  assert.equal(root.style.fontSize, '14px');
+  assert.ok(medium.classList.contains('active'));
+  assert.ok(!small.classList.contains('active'));
+
+  const large = doc.querySelector('.font-btn[data-size="large"]');
+  large.click();
+  assert.equal(root.style.fontSize, '16px');
+  assert.ok(large.classList.contains('active'));
+  assert.equal(window.localStorage.getItem('fontSize'), 'large');
+});
+
+test('cycles through every light and dark palette', async () => {
+  const { window } = boot();
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const toggle = doc.getElementById('theme-toggle');
+  const root = doc.documentElement;
+  const label = () => toggle.querySelector('.theme-label').textContent;
+  const colors = () => [...doc.querySelectorAll('meta[name="theme-color"]')]
+    .map((meta) => meta.getAttribute('content'));
+
+  assert.equal(label(), 'Auto');
+  assert.equal(root.dataset.theme, undefined, 'auto relies on prefers-color-scheme');
+
+  const expected = [
+    ['Light', 'light', '#f4f1e8'],
+    ['Sage', 'sage', '#eef1e7'],
+    ['Dark', 'dark', '#0a1215'],
+    ['Ember', 'ember', '#171018'],
+    ['Midnight', 'midnight', '#070d1a'],
+  ];
+  for (const [name, theme, color] of expected) {
+    toggle.click();
+    assert.equal(label(), name);
+    assert.equal(root.dataset.theme, theme);
+    assert.equal(window.localStorage.getItem('theme'), theme);
+    assert.ok(colors().every((value) => value === color), `${theme} theme-color`);
+  }
+
+  toggle.click();
+  assert.equal(label(), 'Auto');
+  assert.equal(root.dataset.theme, undefined);
+  assert.deepEqual(colors(), ['#0a1215', '#f4f1e8'], 'auto restores the media-scoped defaults');
+});
+
+test('keeps unsent drafts per conversation across chat switches', async () => {
+  const { window } = boot();
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const input = doc.getElementById('user-input');
+  const type = (text) => {
+    input.value = text;
+    input.dispatchEvent(new window.Event('input', { bubbles: true }));
+  };
+
+  // A draft in the unsaved conversation is stored under `new`.
+  type('half a thought');
+  assert.equal(JSON.parse(window.localStorage.getItem('drafts')).new, 'half a thought');
+
+  // Opening a chat parks the old draft and restores that chat's own.
+  doc.querySelector('.chat-item[data-chat-id="7"]').click();
+  await until(() => doc.querySelector('.chat-item[data-chat-id="7"]').classList.contains('active'),
+    'chat to open');
+  assert.equal(input.value, '');
+
+  type('chat-only note');
+  await until(() => doc.querySelector('.chat-item[data-chat-id="7"] .chat-draft'), 'draft badge');
+
+  // New conversation brings the first draft back, untouched.
+  doc.getElementById('new-chat-btn').click();
+  assert.equal(input.value, 'half a thought');
+  const drafts = JSON.parse(window.localStorage.getItem('drafts'));
+  assert.equal(drafts['chat:7'], 'chat-only note');
+
+  // Sending consumes the draft for the active conversation.
+  doc.getElementById('send-btn').click();
+  await until(() => {
+    const saved = JSON.parse(window.localStorage.getItem('drafts') || '{}');
+    return !saved.new;
+  }, 'draft to clear after send');
+  assert.equal(JSON.parse(window.localStorage.getItem('drafts'))['chat:7'], 'chat-only note');
+});
+
 test('renders models, the empty state, and stored titles as inert text', async () => {
   const { window } = boot();
   await until(() => window.document.getElementById('current-model-name').textContent === 'llama3:8b',

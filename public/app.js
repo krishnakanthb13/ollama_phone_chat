@@ -394,6 +394,7 @@ function renderChatList() {
     for (const chat of state.chats) {
         const item = document.createElement('div');
         item.className = 'chat-item' + (chat.id === state.currentChatId ? ' active' : '');
+        item.dataset.chatId = String(chat.id);
         item.tabIndex = 0;
         item.setAttribute('role', 'button');
         item.setAttribute('aria-label', `Open chat ${chat.title || 'Untitled'}`);
@@ -431,6 +432,94 @@ function renderChatList() {
         item.appendChild(remove);
         dom.chatList.appendChild(item);
     }
+
+    syncDraftBadges();
+}
+
+// --- Drafts ---
+
+// Unsent composer text survives reloads and chat switches. Drafts live in one
+// localStorage map keyed by scope (`new` or `chat:<id>`), so moving between
+// conversations never bleeds one draft into another.
+const DRAFTS_KEY = 'drafts';
+
+function readDrafts() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}');
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function writeDrafts(drafts) {
+    try {
+        localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+    } catch (error) {
+        // Drafts are best-effort: private mode or a full quota must not break chat.
+    }
+}
+
+function draftScope() {
+    return state.currentChatId ? `chat:${state.currentChatId}` : 'new';
+}
+
+function saveDraft() {
+    const text = dom.textInput.value;
+    const scope = draftScope();
+    const drafts = readDrafts();
+    const had = Boolean(drafts[scope]);
+    const has = Boolean(text.trim());
+    if (has) drafts[scope] = text;
+    else delete drafts[scope];
+    writeDrafts(drafts);
+    if (had !== has) syncDraftBadges();
+}
+
+function restoreDraft() {
+    const drafts = readDrafts();
+    dom.textInput.value = drafts[draftScope()] || '';
+    autoResizeInput();
+    updateSendButtonState();
+}
+
+function clearDraft(scope = draftScope()) {
+    const drafts = readDrafts();
+    if (!(scope in drafts)) return;
+    delete drafts[scope];
+    writeDrafts(drafts);
+    syncDraftBadges();
+}
+
+// The first send promotes the unsaved `new` scope to a real chat id. Text typed
+// while the reply is still starting has to follow it.
+function adoptChatScope(id) {
+    const drafts = readDrafts();
+    delete drafts.new;
+    const text = dom.textInput.value;
+    if (text.trim()) drafts[`chat:${id}`] = text;
+    else delete drafts[`chat:${id}`];
+    writeDrafts(drafts);
+}
+
+// Chat rows advertise an unsent draft without re-rendering the whole list.
+function syncDraftBadges() {
+    if (!dom.chatList) return;
+    const drafts = readDrafts();
+    dom.chatList.querySelectorAll('.chat-item').forEach((item) => {
+        const id = Number(item.dataset.chatId);
+        const hasDraft = Boolean(id && drafts[`chat:${id}`]);
+        const badge = item.querySelector('.chat-draft');
+        if (hasDraft && !badge) {
+            const label = document.createElement('span');
+            label.className = 'chat-draft';
+            label.textContent = 'Draft';
+            const date = item.querySelector('.chat-item-date');
+            (date || item).appendChild(label);
+        } else if (!hasDraft && badge) {
+            badge.remove();
+        }
+    });
 }
 
 function getModelCapabilities(model) {
@@ -720,6 +809,7 @@ async function loadChatList() {
 
 async function loadChat(id) {
     abortActiveStream();
+    saveDraft();
     try {
         const response = await fetch(`/api/chats/${id}`);
         if (handleUnauthorized(response)) return;
@@ -734,6 +824,7 @@ async function loadChat(id) {
             selectModel(data.model, { closeModal: false });
         }
         renderMessages();
+        restoreDraft();
         closeSidebar();
         loadChatList();
     } catch (error) {
@@ -744,9 +835,11 @@ async function loadChat(id) {
 
 function createNewChat() {
     abortActiveStream();
+    saveDraft();
     state.currentChatId = null;
     state.messages = [];
     renderMessages();
+    restoreDraft();
     closeSidebar();
     dom.textInput.focus();
 }
@@ -765,7 +858,9 @@ async function deleteChat(id) {
             state.currentChatId = null;
             state.messages = [];
             renderMessages();
+            restoreDraft();
         }
+        clearDraft(`chat:${id}`);
         await loadChatList();
     } catch (error) {
         console.error('Failed to delete chat', error);
@@ -914,6 +1009,7 @@ async function sendMessage() {
 
     dom.textInput.value = '';
     autoResizeInput();
+    clearDraft();
     const bubble = createStreamingBubble();
     setSending(true);
 
@@ -979,6 +1075,7 @@ async function sendMessage() {
         await consumeSse(response.body, (data) => {
             if (data.type === 'chat_created') {
                 state.currentChatId = data.chatId;
+                adoptChatScope(data.chatId);
                 loadChatList();
                 return;
             }
@@ -1153,9 +1250,34 @@ function updateSettingsForModel(modelName) {
 
 // --- Theme ---
 
-const THEME_ORDER = ['auto', 'light', 'dark'];
-const THEME_LABELS = { auto: 'Auto', light: 'Light', dark: 'Dark' };
-const THEME_ICONS = { auto: '◐', light: '☀', dark: '☾' };
+const THEME_ORDER = ['auto', 'light', 'sage', 'dark', 'ember', 'midnight'];
+const THEME_LABELS = {
+    auto: 'Auto',
+    light: 'Light',
+    sage: 'Sage',
+    dark: 'Dark',
+    ember: 'Ember',
+    midnight: 'Midnight',
+};
+const THEME_ICONS = { auto: '◐', light: '☀', sage: '❧', dark: '☾', ember: '◑', midnight: '✧' };
+const THEME_COLORS = {
+    light: '#f4f1e8',
+    sage: '#eef1e7',
+    dark: '#0a1215',
+    ember: '#171018',
+    midnight: '#070d1a',
+};
+const THEME_COLOR_METAS = Array.from(document.querySelectorAll('meta[name="theme-color"]'));
+const THEME_COLOR_DEFAULTS = THEME_COLOR_METAS.map((meta) => meta.getAttribute('content'));
+
+// Keep the mobile browser chrome in step with the palette. In auto mode the
+// two media-scoped defaults take over again.
+function syncThemeColor(theme) {
+    THEME_COLOR_METAS.forEach((meta, index) => {
+        const color = theme === 'auto' ? THEME_COLOR_DEFAULTS[index] : THEME_COLORS[theme];
+        if (color) meta.setAttribute('content', color);
+    });
+}
 
 function applyTheme(theme) {
     const next = THEME_ORDER.includes(theme) ? theme : 'auto';
@@ -1164,6 +1286,7 @@ function applyTheme(theme) {
     } else {
         document.documentElement.dataset.theme = next;
     }
+    syncThemeColor(next);
 
     const toggle = dom.themeToggle || document.getElementById('theme-toggle');
     if (!toggle) return;
@@ -1182,7 +1305,9 @@ function cycleTheme() {
 }
 
 function setFontSize(size) {
-    const sizes = { small: '14px', medium: '16px', large: '18px' };
+    // The scale shifted down one step: the old small is now the middle and the
+    // old medium is the largest, with a new 12px floor.
+    const sizes = { small: '12px', medium: '14px', large: '16px' };
     document.documentElement.style.fontSize = sizes[size] || sizes.medium;
     localStorage.setItem('fontSize', size);
     document.querySelectorAll('.font-btn').forEach((button) => {
@@ -1358,6 +1483,7 @@ function setupEventListeners() {
     dom.textInput.addEventListener('input', () => {
         autoResizeInput();
         updateSendButtonState();
+        saveDraft();
     });
 
     document.querySelectorAll('.font-btn').forEach((button) => {
@@ -1482,6 +1608,7 @@ async function completeInit() {
     await loadModels();
     await loadChatList();
     if (!state.messages.length) renderMessages();
+    restoreDraft();
     updateSendButtonState();
 }
 

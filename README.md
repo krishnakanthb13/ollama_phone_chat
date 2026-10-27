@@ -13,7 +13,7 @@
 
 -   **Zero-Config Connection**: Just scan the QR code in your terminal and start chatting.
 -   **Mobile-First Design**: A premium, responsive "signal desk" interface built for thumbs: centred composer, scroll-to-latest, and a slide-over history drawer.
--   **Light & Dark Themes**: A warm-paper daylight palette and a deep petrol night palette. Follows your system by default; the sidebar toggle cycles Auto → Light → Dark.
+-   **Light & Dark Themes**: Six palettes — warm paper, herb green, petrol, plum ember, and deep midnight — following your system by default. The sidebar toggle cycles Auto → Light → Sage → Dark → Ember → Midnight, and the phone's browser chrome follows along.
 -   **Self-Hosted Typography**: Bricolage Grotesque and Instrument Sans ship with the app, so the interface keeps its character offline and under a strict CSP.
 -   **"Thinking" Support**: Visualize the reasoning process of models (like DeepSeek) in real-time.
 -   **Stop Generation**: Cancel a streaming reply at any time without losing the partial answer.
@@ -21,7 +21,8 @@
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
 -   **Cloud Cost Clarity**: The model picker groups local models, free-tier cloud models, and plan-only cloud models separately, so the cost of a choice is visible before you send. The empty state repeats it for the selected cloud model.
--   **Font Size Controls**: Three adjustable text sizes (Small/Med/Large) for optimal readability.
+-   **Font Size Controls**: Three text scales (12px / 14px / 16px) that rescale the whole interface, remembered across visits.
+-   **Draft Autosave**: Unsent text is kept per conversation, restored when you come back, and flagged with a Draft badge in the history list.
 -   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
 -   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.
 -   **Privacy First**: 100% local. Your data never leaves your home network.

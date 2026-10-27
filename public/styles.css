@@ -78,8 +78,87 @@
   color-scheme: light;
 }
 
+/* Herb-garden daylight: softer greens, calmer contrast. */
+:root[data-theme='sage'] {
+  --bg: #eef1e7;
+  --bg-raised: #f7f9f1;
+  --surface: #e2e8d7;
+  --surface-2: #d5dfc8;
+  --line: #c6d1b6;
+  --line-soft: #dbe3ce;
+  --text: #1b241c;
+  --text-2: #55624d;
+  --text-3: #66735c;
+  --accent: #3f6f3a;
+  --accent-strong: #2f5a2c;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(63, 111, 58, 0.1);
+  --accent-line: rgba(63, 111, 58, 0.45);
+  --danger: #a83a2c;
+  --danger-soft: rgba(168, 58, 44, 0.1);
+  --danger-line: rgba(168, 58, 44, 0.35);
+  --warn: #8a6200;
+  --warn-soft: rgba(138, 98, 0, 0.12);
+  --warn-line: rgba(138, 98, 0, 0.35);
+  --shadow: rgba(39, 52, 33, 0.16);
+  color-scheme: light;
+}
+
+/* Ember night: plum ink lit by warm amber. */
+:root[data-theme='ember'] {
+  --bg: #171018;
+  --bg-raised: #1f1520;
+  --surface: #2a1c28;
+  --surface-2: #35232f;
+  --line: #45303c;
+  --line-soft: #32222c;
+  --text: #f7eef1;
+  --text-2: #c2a9b5;
+  --text-3: #937b87;
+  --accent: #f0a878;
+  --accent-strong: #ffc39a;
+  --accent-ink: #2b1608;
+  --accent-soft: rgba(240, 168, 120, 0.13);
+  --accent-line: rgba(240, 168, 120, 0.42);
+  --danger: #ff9a8a;
+  --danger-soft: rgba(255, 154, 138, 0.13);
+  --danger-line: rgba(255, 154, 138, 0.4);
+  --warn: #f2c66f;
+  --warn-soft: rgba(242, 198, 111, 0.13);
+  --warn-line: rgba(242, 198, 111, 0.4);
+  --shadow: rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+/* Midnight: deep navy with an ice-blue accent. */
+:root[data-theme='midnight'] {
+  --bg: #070d1a;
+  --bg-raised: #0c1526;
+  --surface: #111e33;
+  --surface-2: #172842;
+  --line: #22395a;
+  --line-soft: #182a44;
+  --text: #e9f0fb;
+  --text-2: #a2b6d2;
+  --text-3: #7387a3;
+  --accent: #8fb7ff;
+  --accent-strong: #b3cdff;
+  --accent-ink: #08152b;
+  --accent-soft: rgba(143, 183, 255, 0.14);
+  --accent-line: rgba(143, 183, 255, 0.42);
+  --danger: #ff9d9d;
+  --danger-soft: rgba(255, 157, 157, 0.13);
+  --danger-line: rgba(255, 157, 157, 0.4);
+  --warn: #f3ca77;
+  --warn-soft: rgba(243, 202, 119, 0.13);
+  --warn-line: rgba(243, 202, 119, 0.4);
+  --shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+/* Auto mode leaves the attribute off so the system preference decides. */
 @media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
+  :root:not([data-theme]) {
     --bg: #f4f1e8;
     --bg-raised: #fbf9f3;
     --surface: #ece8dc;
@@ -361,10 +440,25 @@ select {
 }
 
 .chat-item-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 3px;
   color: var(--text-3);
   font-size: 0.67rem;
   letter-spacing: 0.02em;
+}
+
+.chat-draft {
+  padding: 1px 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .delete-chat {
