@@ -103,6 +103,19 @@ Both libraries are served locally: the UI does not need internet access to load,
 
 ---
 
+## Testing
+
+`npm test` runs the `node:test` suite (Node 18+). The tests isolate all state: each file uses a temporary SQLite database and model cache via `DB_PATH`/`MODELS_CACHE`, an ephemeral HTTP port, and a mock Ollama server, so no real chats or network services are touched.
+
+- `test/db.test.js`: encryption/decryption, `ag:` payloads, legacy CBC reads, retry idempotency, cascade deletes, and wrong-password markers (verified in a child process).
+- `test/db-plaintext.test.js`: documented plaintext mode when `APP_PASSWORD` is unset.
+- `test/server.test.js`: status/LAN reporting, security headers, CSP, vendored assets, authentication, payload validation, streaming and persistence, retry idempotency, upstream failures, JSON errors, and login rate limiting.
+- `test/frontend.test.js`: loads the real HTML and vendored bundles in jsdom, checks that stored titles stay inert, verifies Markdown sanitization, streams a reply, exercises the stop button, and covers saved-password handling.
+
+`jsdom` is a development-only dependency for the frontend tests.
+
+---
+
 ## Configuration
 
 Environment variables are read by `config.js`:

@@ -307,6 +307,14 @@ function getLanIp() {
     return addresses.length ? addresses[0].address : 'localhost';
 }
 
+function activePort() {
+    if (server) {
+        const address = server.address();
+        if (address && typeof address === 'object' && address.port) return address.port;
+    }
+    return config.port;
+}
+
 // --- Middleware ---
 
 app.disable('x-powered-by');
@@ -404,7 +412,7 @@ app.get('/api/status', (req, res) => {
         connected,
         lanIp: addresses.length ? addresses[0].address : 'localhost',
         lanIps: addresses.slice(0, 5).map((entry) => entry.address),
-        port: config.port,
+        port: activePort(),
         authRequired: Boolean(config.appPassword),
         cloudAvailable: Boolean(config.cloudApiKey),
         version: VERSION,
@@ -733,9 +741,10 @@ function start() {
         server.once('error', onError);
         server.listen(config.port, config.host, () => {
             server.off('error', onError);
+            const port = activePort();
             const addresses = getLanAddresses();
             const primary = addresses.length ? addresses[0] : { address: 'localhost', interface: 'loopback' };
-            const url = `http://${primary.address}:${config.port}`;
+            const url = `http://${primary.address}:${port}`;
 
             console.log('\n=======================================');
             console.log('🚀 Ollama Phone Chat Bridge Running!');
@@ -745,13 +754,13 @@ function start() {
                 if (addresses.length > 1) {
                     console.log('   Other addresses:');
                     for (const entry of addresses.slice(1, 5)) {
-                        console.log(`     http://${entry.address}:${config.port}  (${entry.interface})`);
+                        console.log(`     http://${entry.address}:${port}  (${entry.interface})`);
                     }
                 }
             } else {
                 console.log('⚠️  No LAN address found. Connect this machine to Wi-Fi/Ethernet.');
             }
-            console.log(`🖥️  This machine: http://localhost:${config.port}`);
+            console.log(`🖥️  This machine: http://localhost:${port}`);
             if (!config.appPassword) {
                 console.log('⚠️  No APP_PASSWORD set: anyone on your LAN can read chats and use the API key.');
             }
