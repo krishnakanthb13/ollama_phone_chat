@@ -20,8 +20,9 @@ graph TD
 
 | Path | Description |
 | :--- | :--- |
-| `server.js` | Main entry point. Handles routing, Ollama detection, and SSE streaming. |
-| `db.js` | Database initialization and promisified SQLite wrappers. |
+| `server.js` | HTTP entry point: routing, auth, validation, Ollama detection, SSE streaming, lifecycle. |
+| `config.js` | Central configuration loaded from environment variables (port, host, mode, timeouts, limits). |
+| `db.js` | Database initialization, migrations, encryption, and the chat/message repository. |
 | `public/` | Static files for the frontend. |
 | `public/index.html` | The main UI structure (mobile-first). Includes font size controls. |
 | `public/app.js` | Frontend logic: state management, SSE handling, UI rendering, and font scaling. |
@@ -40,12 +41,18 @@ The backend is built with Express and provides the following API endpoints:
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/api/status` | GET | Returns connection status, LAN IP, and port. |
-| `/api/models` | GET | Lists available Ollama models (with caching). |
+| `/api/status` | GET | Public connection status, LAN IP, port, auth/cloud availability, version. |
+| `/api/health` | GET | Public liveness probe (version, mode, uptime). |
+| `/api/login` | POST | Password check, rate limited per client IP. |
+| `/api/auth/verify` | GET | Protected endpoint used by the UI to validate a saved password. |
+| `/api/models` | GET | Lists available models from local/cloud Ollama with a cache fallback (`source`, `stale`). |
 | `/api/chats` | GET | Fetches all chat histories from the database. |
+| `/api/chats` | POST | Creates a chat (title/model default safely when omitted). |
 | `/api/chats/:id`| GET | Fetches details and messages for a specific chat. |
-| `/api/chat` | POST | Main chat endpoint. Supports Server-Sent Events (SSE). |
-| `/api/chats/:id`| DELETE| Deletes a chat history. |
+| `/api/chat` | POST | Validated streaming chat endpoint using Server-Sent Events (SSE). |
+| `/api/chats/:id`| DELETE| Deletes a chat; returns 404 when it does not exist. |
+
+All request bodies are validated before use. Invalid input returns a JSON `400` instead of throwing, and unexpected errors return a generic `500` without stack traces. Unknown API routes return JSON `404`.
 
 ### Database (`db.js`)
 Uses `sqlite3` to manage two primary tables plus a small metadata table:
@@ -62,9 +69,10 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 1.  **Detection**: On startup, the server attempts to detect a local Ollama instance at `http://localhost:11434`.
 2.  **Connection**: The server generates a QR code in the terminal for the user to scan with their phone.
 3.  **Interaction**:
-    -   When a user sends a message, `app.js` sends a `POST` request to `/api/chat`.
-    -   The server forwards the request to Ollama and streams the response back to the client using **Server-Sent Events (SSE)**.
-    -   Messages are persisted to `chats.db` in real-time.
+    -   When a user sends a message, `app.js` sends a `POST` request to `/api/chat` with a `clientMessageId`.
+    -   The server validates the payload, calls Ollama, and only after Ollama accepts the request creates the chat and stores the user message. Failed requests leave no empty chats behind.
+    -   The response is streamed back as **Server-Sent Events (SSE)** with a 15-second heartbeat. Client disconnects abort the upstream request, and partial replies are still persisted.
+    -   The assistant message is saved once, when Ollama reports `done`.
 4.  **UI Updates**: `app.js` parses the SSE stream, renders Markdown using `marked`, and sanitizes output with `DOMPurify`.
 
 ---
@@ -82,6 +90,31 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 - `marked`: Markdown parsing.
 - `DOMPurify`: HTML sanitization.
 - `highlight.js`: Code syntax highlighting.
+
+---
+
+## Configuration
+
+Environment variables are read by `config.js`:
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PORT` | `3000` | HTTP port. |
+| `HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for local-only). |
+| `MODE` | `auto` | `auto`, `local`, or `cloud`. |
+| `APP_PASSWORD` | unset | Enables authentication and at-rest encryption. |
+| `OLLAMA_API_KEY` | unset | Required for cloud mode. |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Local Ollama base URL. |
+| `OLLAMA_CLOUD_URL` | `https://ollama.com/api` | Cloud API base URL. |
+| `REQUEST_TIMEOUT_MS` | `120000` | Upstream chat timeout. |
+| `DETECT_TIMEOUT_MS` | `3000` | Model/health probe timeout. |
+| `OLLAMA_HEALTH_INTERVAL_MS` | `30000` | Auto-mode re-detection interval. |
+| `MAX_BODY_SIZE` | `2mb` | JSON body limit. |
+| `DB_PATH` | `data/chats.db` | SQLite file (useful for tests). |
+| `MODELS_CACHE` | `models_cache.json` | Model cache path. |
+| `LOGIN_MAX_ATTEMPTS` | `5` | Login attempts per window. |
+| `LOGIN_WINDOW_MS` | `60000` | Login rate-limit window. |
+| `TRUST_PROXY` | unset | Set to `1` when behind a trusted reverse proxy. |
 
 ---
 

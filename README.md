@@ -47,6 +47,11 @@ When set, new messages and chat titles are encrypted with **AES-256-GCM** using 
 
 ---
 
+### ⚙️ Configuration
+Most settings have sensible defaults. See [Code Documentation](./CODE_DOCUMENTATION.md#configuration) for the full environment-variable table, including `OLLAMA_HOST`, `HOST`, timeouts, and test-friendly `DB_PATH`.
+
+---
+
 ## 📖 Documentation
 
 -   [**Code Documentation**](./CODE_DOCUMENTATION.md): High-level architecture and module overview.
