@@ -260,14 +260,51 @@ function startModeWatcher() {
 
 // --- Networking ---
 
-function getLanIp() {
-    const nets = os.networkInterfaces();
-    for (const name of Object.keys(nets)) {
-        for (const net of nets[name] || []) {
-            if (net.family === 'IPv4' && !net.internal) return net.address;
+// Virtual adapters (Hyper-V, WSL, Docker, VPNs) are frequently the first
+// non-internal IPv4 address, but phones cannot reach them. Score interfaces
+// so the printed QR code points at a real LAN address.
+const VIRTUAL_INTERFACE = /(vethernet|virtualbox|vmware|hyper-?v|wsl|docker|br-|virbr|tun\d|tap\d|vpn|zerotier|tailscale|hamachi|npcap|loopback|bluetooth)/i;
+const PHYSICAL_INTERFACE = /(wi-?fi|wlan|wireless|ethernet|eth\d+|en\d+|lan)/i;
+
+function scoreAddress(interfaceName, address) {
+    let score = 0;
+
+    if (/^192\.168\./.test(address)) score += 50;
+    else if (/^10\./.test(address)) score += 40;
+    else if (/^172\.(1[6-9]|2[0-9]|3[01])\./.test(address)) score += 30;
+    else if (/^169\.254\./.test(address)) score -= 100; // link-local, not routable
+    else score += 10;
+
+    if (VIRTUAL_INTERFACE.test(interfaceName)) score -= 60;
+    if (PHYSICAL_INTERFACE.test(interfaceName)) score += 10;
+    // Windows Internet Connection Sharing / mobile hotspot defaults.
+    if (/^192\.168\.137\./.test(address)) score += 5;
+
+    return score;
+}
+
+function getLanAddresses() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+
+    for (const [name, entries] of Object.entries(interfaces)) {
+        for (const entry of entries || []) {
+            if (entry.internal) continue;
+            if (entry.family !== 'IPv4' && entry.family !== 4) continue;
+            addresses.push({
+                interface: name,
+                address: entry.address,
+                score: scoreAddress(name, entry.address),
+            });
         }
     }
-    return 'localhost';
+
+    return addresses.sort((a, b) => b.score - a.score || a.address.localeCompare(b.address));
+}
+
+function getLanIp() {
+    const addresses = getLanAddresses();
+    return addresses.length ? addresses[0].address : 'localhost';
 }
 
 // --- Middleware ---
@@ -345,10 +382,12 @@ app.post('/api/login', rateLimitLogin, (req, res) => {
 app.get('/api/status', (req, res) => {
     detectOllama().catch(() => {});
     const connected = mode === 'local' || (mode === 'cloud' && Boolean(config.cloudApiKey));
+    const addresses = getLanAddresses();
     res.json({
         mode,
         connected,
-        lanIp: getLanIp(),
+        lanIp: addresses.length ? addresses[0].address : 'localhost',
+        lanIps: addresses.slice(0, 5).map((entry) => entry.address),
         port: config.port,
         authRequired: Boolean(config.appPassword),
         cloudAvailable: Boolean(config.cloudApiKey),
@@ -678,15 +717,30 @@ function start() {
         server.once('error', onError);
         server.listen(config.port, config.host, () => {
             server.off('error', onError);
-            const url = `http://${getLanIp()}:${config.port}`;
+            const addresses = getLanAddresses();
+            const primary = addresses.length ? addresses[0] : { address: 'localhost', interface: 'loopback' };
+            const url = `http://${primary.address}:${config.port}`;
+
             console.log('\n=======================================');
             console.log('🚀 Ollama Phone Chat Bridge Running!');
-            console.log(`📱 Connect your phone to: ${url}`);
+            if (addresses.length) {
+                console.log(`📱 Connect your phone to: ${url}`);
+                console.log(`   Interface: ${primary.interface}`);
+                if (addresses.length > 1) {
+                    console.log('   Other addresses:');
+                    for (const entry of addresses.slice(1, 5)) {
+                        console.log(`     http://${entry.address}:${config.port}  (${entry.interface})`);
+                    }
+                }
+            } else {
+                console.log('⚠️  No LAN address found. Connect this machine to Wi-Fi/Ethernet.');
+            }
+            console.log(`🖥️  This machine: http://localhost:${config.port}`);
             if (!config.appPassword) {
                 console.log('⚠️  No APP_PASSWORD set: anyone on your LAN can read chats and use the API key.');
             }
             console.log('=======================================\n');
-            qrcode.generate(url, { small: true });
+            if (addresses.length) qrcode.generate(url, { small: true });
             resolve(server);
         });
     });
@@ -754,6 +808,7 @@ module.exports = {
     detectOllama,
     validateChatPayload,
     getLanIp,
+    getLanAddresses,
     get mode() { return mode; },
     get server() { return server; },
 };

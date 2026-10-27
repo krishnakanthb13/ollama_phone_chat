@@ -100,8 +100,7 @@ Environment variables are read by `config.js`:
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
 | `PORT` | `3000` | HTTP port. |
-| `HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for local-only). |
-| `MODE` | `auto` | `auto`, `local`, or `cloud`. |
+| `HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for local-only). || `MODE` | `auto` | `auto`, `local`, or `cloud`. |
 | `APP_PASSWORD` | unset | Enables authentication and at-rest encryption. |
 | `OLLAMA_API_KEY` | unset | Required for cloud mode. |
 | `OLLAMA_HOST` | `http://127.0.0.1:11434` | Local Ollama base URL. |
@@ -115,6 +114,9 @@ Environment variables are read by `config.js`:
 | `LOGIN_MAX_ATTEMPTS` | `5` | Login attempts per window. |
 | `LOGIN_WINDOW_MS` | `60000` | Login rate-limit window. |
 | `TRUST_PROXY` | unset | Set to `1` when behind a trusted reverse proxy. |
+
+### LAN address selection
+The server scores non-internal IPv4 interfaces and deprioritizes virtual adapters (Hyper-V, WSL, Docker, VPNs) and 169.254 link-local addresses. `/api/status` returns the best `lanIp` plus up to five `lanIps`; startup prints alternative addresses and generates the QR code for the best candidate. Use `HOST` to restrict the bind address.
 
 ---
 
