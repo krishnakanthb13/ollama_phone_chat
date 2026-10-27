@@ -13,6 +13,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: Node.js 20.17+ is required by the current sqlite3 release.
+node -e "const v=process.versions.node.split('.').map(Number);process.exit(v[0]>20||(v[0]===20&&v[1]>=17)?0:1)" >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [ERROR] Node.js 20.17 or newer is required. Found:
+    node -v
+    pause
+    exit /b 1
+)
+
 :: 2. Install dependencies if node_modules missing
 if not exist "node_modules" (
     echo [INFO] Installing dependencies...

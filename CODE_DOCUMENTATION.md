@@ -118,7 +118,7 @@ Both libraries are served locally: the UI does not need internet access to load,
 
 ## Configuration
 
-Environment variables are read by `config.js`:
+Environment variables are read by `config.js`. Copy `.env.example` to `.env` and adjust what you need; every variable is optional and the example lists the defaults.
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |

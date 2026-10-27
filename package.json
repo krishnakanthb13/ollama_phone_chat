@@ -1,6 +1,6 @@
 {
     "name": "ollama-phone-chat",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "description": "Seamlessly chat with local Ollama models from your phone.",
     "main": "server.js",
     "engines": {

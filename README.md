@@ -46,6 +46,10 @@ To enable encryption and password protection, add an `APP_PASSWORD` to your `.en
 ```env
 APP_PASSWORD=your_secret_password_here
 ```
+Start from the commented template so you can see every supported setting:
+```bash
+cp .env.example .env
+```
 When set, new messages and chat titles are encrypted with **AES-256-GCM** using a key derived from your password with scrypt (per-install salt stored in `data/.key_salt`). Without `APP_PASSWORD`, history is stored unencrypted. Legacy AES-256-CBC rows written by v0.0.4 remain readable. Changing `APP_PASSWORD` makes previously encrypted rows unreadable, so back up the database before rotating the password.
 
 ---

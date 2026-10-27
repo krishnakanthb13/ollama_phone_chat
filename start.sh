@@ -10,6 +10,12 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# Node.js 20.17+ is required by the current sqlite3 release.
+if ! node -e 'const v=process.versions.node.split(".").map(Number);process.exit(v[0]>20||(v[0]===20&&v[1]>=17)?0:1)' > /dev/null 2>&1; then
+    echo "[ERROR] Node.js 20.17 or newer is required. Found: $(node -v 2>/dev/null || echo unknown)"
+    exit 1
+fi
+
 # 2. Install dependencies if node_modules missing
 if [ ! -d "node_modules" ]; then
     echo "[INFO] Installing dependencies..."
