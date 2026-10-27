@@ -26,6 +26,19 @@ const state = {
 
 const MAX_CONTEXT_MESSAGES = 40;
 const MAX_CONTEXT_CHARS = 24000;
+
+// Cloud models that draw from free usage instead of requiring a paid plan.
+// The CLI (`gemma4:cloud`) and the cloud API (`gemma4:31b`) label the same
+// model differently, so names are compared with any cloud suffix removed.
+const FREE_CLOUD_MODELS = new Set([
+    'beam',
+    'gemma4:31b',
+    'gpt-oss:120b',
+    'gpt-oss:20b',
+    'nemotron-3-nano:30b',
+    'nemotron-3-super',
+    'nemotron-3-ultra',
+]);
 const COPY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="currentColor">
   <path d="M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z"/>
 </svg>`;
@@ -301,9 +314,17 @@ function showEmptyState() {
     kicker.textContent = 'Ready when you are';
 
     const title = document.createElement('h2');
-    title.textContent = state.currentModel
-        ? `Start a conversation using ${state.currentModel}`
-        : 'Select a model to start chatting';
+    if (state.currentModel) {
+        // Keep the exact phrase in the text content while letting the model
+        // name sit on its own line, so long names never break mid-token.
+        title.appendChild(document.createTextNode('Start a conversation using '));
+        const modelName = document.createElement('span');
+        modelName.className = 'empty-model';
+        modelName.textContent = state.currentModel;
+        title.appendChild(modelName);
+    } else {
+        title.textContent = 'Select a model to start chatting';
+    }
 
     const copy = document.createElement('p');
     copy.className = 'empty-copy';
@@ -315,6 +336,16 @@ function showEmptyState() {
     wrap.appendChild(kicker);
     wrap.appendChild(title);
     wrap.appendChild(copy);
+
+    if (state.currentModel && isCloudModel(state.currentModel)) {
+        const free = isFreeCloudModel(state.currentModel);
+        const note = document.createElement('p');
+        note.className = 'empty-note' + (free ? '' : ' is-paid');
+        note.textContent = free
+            ? 'Cloud model · included in the free plan'
+            : 'Cloud model · requires a paid plan or usage credits';
+        wrap.appendChild(note);
+    }
 
     if (state.currentModel) {
         const grid = document.createElement('div');
@@ -425,11 +456,75 @@ function getModelCapabilities(name) {
         caps.push({ type: 'size', icon: '⚡', label: 'Fast' });
     }
 
-    if (String(name || '').toLowerCase().endsWith('cloud')) {
+    if (isCloudModel(name)) {
         caps.push({ type: 'cloud', icon: '☁️', label: 'Cloud' });
     }
 
     return caps;
+}
+
+function isCloudModel(name) {
+    return /(?:^|[:\-])cloud$/i.test(String(name || '').trim());
+}
+
+function normalizeCloudName(name) {
+    return String(name || '').trim().toLowerCase().replace(/[:\-]cloud$/, '');
+}
+
+function isFreeCloudModel(name) {
+    return isCloudModel(name) && FREE_CLOUD_MODELS.has(normalizeCloudName(name));
+}
+
+function createModelOption(model) {
+    const option = document.createElement('div');
+    option.className = 'model-option' + (model.name === state.currentModel ? ' selected' : '');
+    option.dataset.value = model.name;
+    option.tabIndex = 0;
+    option.setAttribute('role', 'button');
+    option.setAttribute('aria-label', `Use model ${model.name}`);
+
+    const info = document.createElement('div');
+    info.className = 'model-info';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'model-name-row';
+
+    const name = document.createElement('span');
+    name.className = 'model-name';
+    name.textContent = model.name;
+    nameRow.appendChild(name);
+
+    if (model.name === state.currentModel) {
+        const check = document.createElement('span');
+        check.className = 'model-check';
+        check.textContent = '✓';
+        nameRow.appendChild(check);
+    }
+
+    const capabilities = document.createElement('div');
+    capabilities.className = 'model-capabilities';
+    for (const cap of getModelCapabilities(model.name)) {
+        const icon = document.createElement('span');
+        icon.className = 'capability-icon';
+        icon.title = cap.label;
+        icon.textContent = cap.icon;
+        capabilities.appendChild(icon);
+    }
+
+    info.appendChild(nameRow);
+    info.appendChild(capabilities);
+    option.appendChild(info);
+
+    const choose = () => selectModel(model.name);
+    option.addEventListener('click', choose);
+    option.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            choose();
+        }
+    });
+
+    return option;
 }
 
 function renderModelSelect() {
@@ -469,56 +564,56 @@ function renderModelSelect() {
     if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortOrder === 'desc') sorted.sort((a, b) => b.name.localeCompare(a.name));
 
+    // Local, free cloud, and plan cloud models are listed in separate groups so
+    // the cost of a choice is visible before it is sent.
+    const groups = [
+        { key: 'local', label: 'Local', tier: '', models: [] },
+        { key: 'free', label: 'Cloud', tier: 'free', models: [] },
+        { key: 'paid', label: 'Cloud', tier: 'paid', models: [] },
+    ];
     for (const model of sorted) {
-        const option = document.createElement('div');
-        option.className = 'model-option' + (model.name === state.currentModel ? ' selected' : '');
-        option.dataset.value = model.name;
-        option.tabIndex = 0;
-        option.setAttribute('role', 'button');
-        option.setAttribute('aria-label', `Use model ${model.name}`);
+        if (!isCloudModel(model.name)) groups[0].models.push(model);
+        else if (isFreeCloudModel(model.name)) groups[1].models.push(model);
+        else groups[2].models.push(model);
+    }
 
-        const info = document.createElement('div');
-        info.className = 'model-info';
+    for (const group of groups) {
+        if (!group.models.length) continue;
 
-        const nameRow = document.createElement('div');
-        nameRow.className = 'model-name-row';
+        const section = document.createElement('div');
+        section.className = 'model-group';
+        section.dataset.group = group.key;
+        section.setAttribute('role', 'group');
 
-        const name = document.createElement('span');
-        name.className = 'model-name';
-        name.textContent = model.name;
-        nameRow.appendChild(name);
+        const head = document.createElement('div');
+        head.className = 'model-group-head';
 
-        if (model.name === state.currentModel) {
-            const check = document.createElement('span');
-            check.className = 'model-check';
-            check.textContent = '✓';
-            nameRow.appendChild(check);
+        const title = document.createElement('span');
+        title.className = 'model-group-title';
+        title.id = `model-group-${group.key}-title`;
+        title.textContent = group.label;
+        head.appendChild(title);
+
+        if (group.tier) {
+            const chip = document.createElement('span');
+            chip.className = `tier-chip ${group.tier}`;
+            chip.textContent = group.tier === 'free' ? 'Free' : 'Paid';
+            head.appendChild(chip);
         }
 
-        const capabilities = document.createElement('div');
-        capabilities.className = 'model-capabilities';
-        for (const cap of getModelCapabilities(model.name)) {
-            const icon = document.createElement('span');
-            icon.className = 'capability-icon';
-            icon.title = cap.label;
-            icon.textContent = cap.icon;
-            capabilities.appendChild(icon);
+        const count = document.createElement('span');
+        count.className = 'model-group-count';
+        count.textContent = String(group.models.length);
+        head.appendChild(count);
+
+        section.appendChild(head);
+        section.setAttribute('aria-labelledby', title.id);
+
+        for (const model of group.models) {
+            section.appendChild(createModelOption(model));
         }
 
-        info.appendChild(nameRow);
-        info.appendChild(capabilities);
-        option.appendChild(info);
-
-        const choose = () => selectModel(model.name);
-        option.addEventListener('click', choose);
-        option.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                choose();
-            }
-        });
-
-        modelList.appendChild(option);
+        modelList.appendChild(section);
     }
 
     const nameEl = document.getElementById('current-model-name');

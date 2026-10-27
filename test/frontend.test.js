@@ -49,7 +49,7 @@ function streamResponse(chunks) {
   };
 }
 
-function boot({ authRequired = false, savedPassword = '', chatHandler } = {}) {
+function boot({ authRequired = false, savedPassword = '', chatHandler, models } = {}) {
   const dom = new JSDOM(html.replace(/<script[\s\S]*?<\/script>/g, ''), {
     runScripts: 'dangerously',
     url: 'http://localhost:3111/',
@@ -90,7 +90,11 @@ function boot({ authRequired = false, savedPassword = '', chatHandler } = {}) {
         : jsonResponse({ error: 'Invalid' }, 401);
     }
     if (url === '/api/models') {
-      return jsonResponse({ models: [{ name: 'llama3:8b' }, { name: 'glm-4.7:cloud' }], source: 'local', stale: false });
+      return jsonResponse({
+        models: models || [{ name: 'llama3:8b' }, { name: 'glm-4.7:cloud' }],
+        source: 'local',
+        stale: false,
+      });
     }
     if (url === '/api/chats') {
       return jsonResponse([{
@@ -148,6 +152,41 @@ test('renders models, the empty state, and stored titles as inert text', async (
   assert.equal(title.textContent, '<img src=x onerror="window.__xss=1">');
   assert.equal(doc.querySelectorAll('#chat-list img').length, 0, 'stored title was rendered as HTML');
   assert.equal(window.__xss, undefined);
+});
+
+test('groups local, free cloud, and paid cloud models separately', async () => {
+  const { window } = boot({
+    models: [
+      { name: 'llama3:8b' },
+      { name: 'gpt-oss:120b-cloud' },
+      { name: 'nemotron-3-super:cloud' },
+      { name: 'glm-4.7:cloud' },
+    ],
+  });
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const groups = [...doc.querySelectorAll('.model-group')];
+  assert.deepEqual(groups.map((group) => group.dataset.group), ['local', 'free', 'paid']);
+
+  const namesIn = (key) => [...doc.querySelectorAll(`.model-group[data-group="${key}"] .model-name`)]
+    .map((element) => element.textContent);
+  assert.deepEqual(namesIn('local'), ['llama3:8b']);
+  assert.deepEqual(namesIn('free'), ['gpt-oss:120b-cloud', 'nemotron-3-super:cloud']);
+  assert.deepEqual(namesIn('paid'), ['glm-4.7:cloud']);
+
+  assert.equal(doc.querySelector('.model-group[data-group="free"] .tier-chip').textContent, 'Free');
+  assert.equal(doc.querySelector('.model-group[data-group="paid"] .tier-chip').textContent, 'Paid');
+
+  // The empty state names the cost of the selected cloud model.
+  doc.querySelector('.model-option[data-value="glm-4.7:cloud"]').click();
+  assert.match(doc.querySelector('.empty-note').textContent, /paid plan or usage credits/);
+  assert.ok(doc.querySelector('.empty-note').classList.contains('is-paid'));
+
+  doc.querySelector('.model-option[data-value="gpt-oss:120b-cloud"]').click();
+  assert.match(doc.querySelector('.empty-note').textContent, /free plan/);
+  assert.ok(!doc.querySelector('.empty-note').classList.contains('is-paid'));
 });
 
 test('streams a reply, renders Markdown, and resets the send button', async () => {

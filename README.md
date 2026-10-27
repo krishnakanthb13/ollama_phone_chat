@@ -20,6 +20,7 @@
 -   **Safe Rendering**: Model output is sanitized and titles are rendered as text, not HTML.
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
+-   **Cloud Cost Clarity**: The model picker groups local models, free-tier cloud models, and plan-only cloud models separately, so the cost of a choice is visible before you send. The empty state repeats it for the selected cloud model.
 -   **Font Size Controls**: Three adjustable text sizes (Small/Med/Large) for optimal readability.
 -   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
 -   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.

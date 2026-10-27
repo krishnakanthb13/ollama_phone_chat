@@ -90,6 +90,7 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 - Themes: the stylesheet defines a dark "signal desk" palette and a warm-paper light palette. `auto` follows `prefers-color-scheme`; the sidebar toggle cycles `auto → light → dark` and stores the choice in `localStorage` under `theme`.
 - The empty state is built in the DOM (brand mark, kicker, model name, suggestion chips) and is re-rendered whenever the model changes with no messages loaded. Suggestion chips fill and focus the composer without sending.
 - A scroll-to-latest button appears when the transcript is more than 160px from the bottom. Streaming replies get a blinking caret class that is removed when the stream settles, and message actions (time, copy) are siblings of the bubble so copying never includes UI chrome.
+- The model picker is grouped into **Local**, **Cloud · Free**, and **Cloud · Paid**, and each cloud group carries a tier chip and count. `FREE_CLOUD_MODELS` near the top of `app.js` lists the cloud models that draw from free usage; names are compared with any `:cloud` / `-cloud` suffix removed, because the CLI (`gemma4:cloud`) and the cloud API (`gemma4:31b`) label the same model differently. The empty state repeats the cost of the selected cloud model.
 - Typography is self-hosted: Bricolage Grotesque (display) and Instrument Sans (body/UI) are preloaded from `public/vendor/fonts/`. There are no font or script requests outside the app origin.
 
 ---

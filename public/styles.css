@@ -817,12 +817,38 @@ header > .header-actions {
   line-height: 1.18;
 }
 
+.empty-model {
+  display: block;
+  margin-top: 0.12em;
+  color: var(--accent);
+  font-size: 0.92em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
 .empty-copy {
   max-width: 38ch;
   margin: 0;
   color: var(--text-2);
   font-size: 0.92rem;
   line-height: 1.55;
+}
+
+.empty-note {
+  margin: 12px 0 0;
+  padding: 5px 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.empty-note.is-paid {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 .suggestion-grid {
@@ -1363,6 +1389,55 @@ textarea:focus {
   overflow-y: auto;
   padding: 8px 8px 14px;
   scrollbar-width: thin;
+}
+
+.model-group + .model-group {
+  margin-top: 4px;
+}
+
+.model-group-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 12px 6px;
+}
+
+.model-group-title {
+  color: var(--text-3);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.tier-chip {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tier-chip.free {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tier-chip.paid {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.model-group-count {
+  min-width: 20px;
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .model-option {
