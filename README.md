@@ -22,6 +22,7 @@
 -   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
 -   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.
 -   **Privacy First**: 100% local. Your data never leaves your home network.
+-   **Offline-Ready UI**: Markdown rendering and sanitization libraries are vendored, so the interface loads without a CDN.
 
 ---
 

@@ -96,9 +96,10 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 - `fetch`: Built into Node.js 18+ (no external HTTP client dependency).
 
 ### Frontend
-- `marked`: Markdown parsing.
-- `DOMPurify`: HTML sanitization.
-- `highlight.js`: Code syntax highlighting.
+- `marked` 18.1.2: Markdown parsing, vendored at `public/vendor/marked.umd.js` (MIT).
+- `DOMPurify` 3.4.17: HTML sanitization, vendored at `public/vendor/purify.min.js` (Apache-2.0 OR MPL-2.0).
+
+Both libraries are served locally: the UI does not need internet access to load, and `script-src 'self'` can be enforced. Licenses and checksums are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ---
 
@@ -109,7 +110,8 @@ Environment variables are read by `config.js`:
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
 | `PORT` | `3000` | HTTP port. |
-| `HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for local-only). || `MODE` | `auto` | `auto`, `local`, or `cloud`. |
+| `HOST` | `0.0.0.0` | Bind address (use `127.0.0.1` for local-only). |
+| `MODE` | `auto` | `auto`, `local`, or `cloud`. |
 | `APP_PASSWORD` | unset | Enables authentication and at-rest encryption. |
 | `OLLAMA_API_KEY` | unset | Required for cloud mode. |
 | `OLLAMA_HOST` | `http://127.0.0.1:11434` | Local Ollama base URL. |

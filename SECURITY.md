@@ -8,7 +8,7 @@ Ollama Phone Chat is built on a "Local-First" architecture. By default, it opera
 ## Security Features
 
 ### 1. HTML Sanitization
-We use [DOMPurify](https://github.com/cure53/dompurify) on the frontend to sanitize all Markdown output before it is rendered. This prevents Cross-Site Scripting (XSS) attacks from malicious or malformed model responses.
+We use [DOMPurify](https://github.com/cure53/dompurify) on the frontend to sanitize all Markdown output before it is rendered, and chat titles/user messages are inserted with `textContent`. This prevents Cross-Site Scripting (XSS) attacks from malicious or malformed model responses or stored history. `marked` and `DOMPurify` are vendored under `public/vendor/` (no CDN), with licenses and checksums in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ### 2. SQL Injection Prevention
 All interactions with the SQLite database use **parameterized queries** via the `sqlite3` driver. This ensures that user input cannot be used to manipulate database queries.
@@ -27,6 +27,16 @@ When an `APP_PASSWORD` is configured in the environment, the application encrypt
 
 ### 5. App-Level Authentication
 If an `APP_PASSWORD` is set, the server enforces a custom header check (`X-App-Password`) for all API requests. The frontend provides a secure login overlay to handle this locally.
+
+### 6. Content Security Policy
+Every response includes a restrictive `Content-Security-Policy`:
+- `script-src 'self'` — no inline handlers and no third-party scripts.
+- `object-src 'none'`, `base-uri 'none'`, `form-action 'self'`, `frame-ancestors 'none'`.
+- `connect-src 'self'` — the page only talks to the bridge.
+- `img-src 'self' data: blob:` — remote images in model output are blocked, so the page does not leak requests to third parties.
+- `style-src 'self' 'unsafe-inline'` is required by the existing inline `style` attributes in `index.html`.
+
+Additional headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a `Permissions-Policy` that disables camera, microphone, and geolocation. `x-powered-by` is disabled.
 
 ---
 
