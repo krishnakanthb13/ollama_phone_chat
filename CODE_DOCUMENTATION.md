@@ -89,11 +89,11 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 ## Dependencies
 
 ### Runtime
-- `express`: Web server framework.
-- `sqlite3`: Database engine.
+- `express` 5.x: Web server framework.
+- `sqlite3` 6.x: Database engine (requires Node.js 20.17+).
 - `qrcode-terminal`: Generates QR codes for easy mobile connection.
 - `dotenv`: Environment variable management.
-- `fetch`: Built into Node.js 18+ (no external HTTP client dependency).
+- `fetch`: Built into Node.js (no external HTTP client dependency).
 
 ### Frontend
 - `marked` 18.1.2: Markdown parsing, vendored at `public/vendor/marked.umd.js` (MIT).
@@ -105,7 +105,7 @@ Both libraries are served locally: the UI does not need internet access to load,
 
 ## Testing
 
-`npm test` runs the `node:test` suite (Node 18+). The tests isolate all state: each file uses a temporary SQLite database and model cache via `DB_PATH`/`MODELS_CACHE`, an ephemeral HTTP port, and a mock Ollama server, so no real chats or network services are touched.
+`npm test` runs the `node:test` suite (Node.js 20.17+). The tests isolate all state: each file uses a temporary SQLite database and model cache via `DB_PATH`/`MODELS_CACHE`, an ephemeral HTTP port, and a mock Ollama server, so no real chats or network services are touched.
 
 - `test/db.test.js`: encryption/decryption, `ag:` payloads, legacy CBC reads, retry idempotency, cascade deletes, and wrong-password markers (verified in a child process).
 - `test/db-plaintext.test.js`: documented plaintext mode when `APP_PASSWORD` is unset.

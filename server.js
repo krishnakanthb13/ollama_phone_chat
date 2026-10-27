@@ -12,11 +12,11 @@ const qrcode = require('qrcode-terminal');
 const config = require('./config');
 const db = require('./db');
 
-// Node.js 18+ ships a global fetch implementation. Using it removes the
+// Node.js ships a global fetch implementation. Using it removes the
 // undeclared `node-fetch` dependency that previously broke every chat request
 // after a clean `npm install`.
 if (typeof globalThis.fetch !== 'function') {
-    console.error('[FATAL] Node.js 18 or newer is required (global fetch is unavailable).');
+    console.error('[FATAL] Node.js 20.17 or newer is required (global fetch is unavailable).');
     process.exit(1);
 }
 

@@ -1,7 +1,7 @@
 # Ollama Phone Chat
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20.17%2B-green.svg)](https://nodejs.org/)
 
 **Ollama Phone Chat** is a seamless bridge for chatting with local and cloud [Ollama](https://ollama.com/) models from your mobile devices. It transforms your desktop's AI capabilities into a private, mobile-first experience with zero configuration.
 
@@ -28,7 +28,7 @@
 
 ## 🛠️ Quick Start
 
-1.  **Ensure Ollama is running** on your computer.
+1.  **Ensure Ollama is running** on your computer and that **Node.js 20.17 or newer** is installed.
 2.  **Clone the repo**:
     ```bash
     git clone https://github.com/krishnakanthb13/ollama_phone_chat.git
