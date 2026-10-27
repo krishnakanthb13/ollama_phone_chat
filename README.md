@@ -17,7 +17,7 @@
 -   **Persistent History**: Locally stored SQLite database keeps your chats private and accessible.
 -   **Quality Presets**: Adjust model performance (High/Med/Low) directly from your phone.
 -   **Font Size Controls**: Three adjustable text sizes (Small/Med/Large) for optimal readability.
--   **Encrypted History**: Messages are encrypted at rest using AES-256 (requires `APP_PASSWORD`).
+-   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
 -   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.
 -   **Privacy First**: 100% local. Your data never leaves your home network.
 
@@ -43,7 +43,7 @@ To enable encryption and password protection, add an `APP_PASSWORD` to your `.en
 ```env
 APP_PASSWORD=your_secret_password_here
 ```
-When set, all messages saved to the database will be encrypted with **AES-256-CBC**, and the web interface will require this password to grant access.
+When set, new messages and chat titles are encrypted with **AES-256-GCM** using a key derived from your password with scrypt (per-install salt stored in `data/.key_salt`). Without `APP_PASSWORD`, history is stored unencrypted. Legacy AES-256-CBC rows written by v0.0.4 remain readable. Changing `APP_PASSWORD` makes previously encrypted rows unreadable, so back up the database before rotating the password.
 
 ---
 

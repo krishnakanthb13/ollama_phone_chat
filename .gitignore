@@ -6,8 +6,10 @@ node_modules/
 
 # Database
 data/*.db
+data/*.db-*
 data/*.sqlite
 data/*.sqlite3
+data/.key_salt
 
 # System files
 Thumbs.db

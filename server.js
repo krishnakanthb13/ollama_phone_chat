@@ -179,7 +179,7 @@ app.get('/api/models', async (req, res) => {
 // Chat History: Get all chats
 app.get('/api/chats', async (req, res) => {
     try {
-        const chats = await db.all('SELECT * FROM chats ORDER BY updated_at DESC');
+        const chats = await db.listChats();
         res.json(chats);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -189,9 +189,8 @@ app.get('/api/chats', async (req, res) => {
 // Chat History: Create new chat
 app.post('/api/chats', async (req, res) => {
     try {
-        const { title, model } = req.body;
-        const result = await db.run('INSERT INTO chats (title, model) VALUES (?, ?)', [title || 'New Chat', model]);
-        const newChat = await db.get('SELECT * FROM chats WHERE id = ?', [result.id]);
+        const { title, model } = req.body || {};
+        const newChat = await db.createChat({ title, model });
         res.json(newChat);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -201,10 +200,10 @@ app.post('/api/chats', async (req, res) => {
 // Chat History: Get specific chat messages
 app.get('/api/chats/:id', async (req, res) => {
     try {
-        const chat = await db.get('SELECT * FROM chats WHERE id = ?', [req.params.id]);
+        const chat = await db.getChat(req.params.id);
         if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-        const messages = await db.all('SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC', [req.params.id]);
+        const messages = await db.getMessages(req.params.id);
         res.json({ ...chat, messages });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -214,7 +213,8 @@ app.get('/api/chats/:id', async (req, res) => {
 // Chat History: Delete chat
 app.delete('/api/chats/:id', async (req, res) => {
     try {
-        await db.run('DELETE FROM chats WHERE id = ?', [req.params.id]);
+        const result = await db.deleteChat(req.params.id);
+        if (!result.changes) return res.status(404).json({ error: 'Chat not found' });
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -225,7 +225,7 @@ app.delete('/api/chats/:id', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     if (currentMode === 'none') return res.status(503).json({ error: 'No Ollama connection' });
 
-    let { messages, model, stream, chatId, options, think } = req.body;
+    let { messages, model, stream, chatId, options, think, clientMessageId } = req.body;
 
     // Set headers for SSE
     res.setHeader('Content-Type', 'text/event-stream');
@@ -238,8 +238,8 @@ app.post('/api/chat', async (req, res) => {
             // Use first message as title or "New Chat"
             const firstUserMsg = messages.find(m => m.role === 'user');
             const title = firstUserMsg ? firstUserMsg.content.substring(0, 30) + (firstUserMsg.content.length > 30 ? '...' : '') : 'New Chat';
-            const result = await db.run('INSERT INTO chats (title, model) VALUES (?, ?)', [title, model]);
-            chatId = result.id;
+            const chat = await db.createChat({ title, model });
+            chatId = chat.id;
             // Send the new chatId to client immediately via a special event
             res.write(`data: ${JSON.stringify({ type: 'chat_created', chatId: chatId })}\n\n`);
         } catch (e) {
@@ -252,10 +252,15 @@ app.post('/api/chat', async (req, res) => {
         const lastMsg = messages[messages.length - 1];
         if (lastMsg && lastMsg.role === 'user') {
             try {
-                await db.run('INSERT INTO messages (chat_id, role, content) VALUES (?, ?, ?)', [chatId, 'user', lastMsg.content]);
+                await db.addMessage({
+                    chatId,
+                    role: 'user',
+                    content: lastMsg.content,
+                    clientMessageId: clientMessageId || null
+                });
 
                 // Update chat timestamp and model
-                await db.run('UPDATE chats SET updated_at = CURRENT_TIMESTAMP, model = ? WHERE id = ?', [model, chatId]);
+                await db.touchChat(chatId, model);
             } catch (err) {
                 console.error('Error saving user message:', err);
             }
@@ -317,7 +322,13 @@ app.post('/api/chat', async (req, res) => {
 
                     if (json.done && chatId) {
                         // Save assistant message to DB
-                        await db.run('INSERT INTO messages (chat_id, role, content, thinking) VALUES (?, ?, ?, ?)', [chatId, 'assistant', assistantContent, assistantThinking]);
+                        await db.addMessage({
+                            chatId,
+                            role: 'assistant',
+                            content: assistantContent,
+                            thinking: assistantThinking || null
+                        });
+                        await db.touchChat(chatId, model);
                     }
                 } catch (e) {
                     // This creates noise for occasional non-fatal flush errors, but primary parsing should be fixed by buffer
@@ -347,8 +358,10 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Start Server
-detectOllama().then(() => {
-    server.listen(PORT, '0.0.0.0', () => {
+db.initDb()
+    .then(() => detectOllama())
+    .then(() => {
+        server.listen(PORT, '0.0.0.0', () => {
         const lanIp = getLanIp();
         const url = `http://${lanIp}:${PORT}`;
 

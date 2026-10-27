@@ -17,10 +17,13 @@ All interactions with the SQLite database use **parameterized queries** via the 
 The Express server is configured to serve static assets only from the `public/` directory, preventing directory traversal attacks.
 
 ### 4. Transparent Data Encryption (TDE)
-When an `APP_PASSWORD` is configured in the environment, the application automatically encrypts the message `content` and `thinking` fields before persistence.
-- **Algorithm**: AES-256-CBC
-- **Key Derivation**: SHA-256 hash of your `APP_PASSWORD`.
-- **IV**: Random 16-byte initialization vector stored per-message.
+When an `APP_PASSWORD` is configured in the environment, the application encrypts `message.content`, `message.thinking`, and `chat.title` before persistence.
+- **Algorithm**: AES-256-GCM (authenticated encryption)
+- **Key Derivation**: scrypt with a random 32-byte per-install salt (`data/.key_salt`)
+- **IV / Tag**: random 12-byte IV and 16-byte authentication tag stored per record
+- **Legacy data**: AES-256-CBC rows from v0.0.4 are decrypted on read for backward compatibility; new rows always use GCM.
+- **No password**: history is stored unencrypted. This is intentional and matches the documented behaviour.
+- **Password changes**: changing `APP_PASSWORD` makes existing ciphertext unreadable. Back up the database before rotating the password.
 
 ### 5. App-Level Authentication
 If an `APP_PASSWORD` is set, the server enforces a custom header check (`X-App-Password`) for all API requests. The frontend provides a secure login overlay to handle this locally.

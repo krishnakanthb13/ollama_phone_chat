@@ -48,9 +48,12 @@ The backend is built with Express and provides the following API endpoints:
 | `/api/chats/:id`| DELETE| Deletes a chat history. |
 
 ### Database (`db.js`)
-Uses `sqlite3` to manage two primary tables:
-- **`chats`**: Stores chat metadata (title, model, timestamps).
-- **`messages`**: Stores message contents, roles (user/assistant), and "thinking" blocks.
+Uses `sqlite3` to manage two primary tables plus a small metadata table:
+- **`chats`**: Stores chat metadata (title, model, timestamps). Titles are encrypted when `APP_PASSWORD` is set.
+- **`messages`**: Stores message contents, roles (user/assistant), optional "thinking" blocks, and an optional `client_message_id` used to make retries idempotent.
+- **`meta`**: Stores key-verification metadata.
+
+The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getMessages`, `addMessage`, `touchChat`, `deleteChat`) which is the only layer that encrypts and decrypts data. Initialization enables `foreign_keys`, WAL journaling, a 5-second busy timeout, an index on `messages(chat_id, created_at, id)`, and an idempotency index on `(chat_id, client_message_id)`. `initDb()` must be awaited before the HTTP server starts listening.
 
 ---
 
