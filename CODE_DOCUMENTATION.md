@@ -30,7 +30,7 @@ graph TD
 | `public/vendor/` | Vendored `marked` and DOMPurify bundles plus their licenses. |
 | `public/vendor/fonts/` | Vendored WOFF2 display/body fonts and their OFL licenses (no CDN). |
 | `data/` | Directory containing the SQLite database (`chats.db`). |
-| `models_cache.json` | Local cache of Ollama models for offline/fallback mode. |
+| `models_cache.json` | Local cache of Ollama models for offline/fallback mode, including the catalog it came from (`local` or `cloud`). |
 | `seed_prompt.txt` | Default system prompt template. |
 | `start.bat` / `start.sh` | Cross-platform launcher scripts. |
 
@@ -47,7 +47,7 @@ The backend is built with Express and provides the following API endpoints:
 | `/api/health` | GET | Public liveness probe (version, mode, uptime). |
 | `/api/login` | POST | Password check, rate limited per client IP. |
 | `/api/auth/verify` | GET | Protected endpoint used by the UI to validate a saved password. |
-| `/api/models` | GET | Lists available models from local/cloud Ollama with a cache fallback (`source`, `stale`). |
+| `/api/models` | GET | Lists available models from local/cloud Ollama with a cache fallback (`source`, `stale`). Every entry carries `cloud: true\|false` so the picker can group models without guessing from the name. |
 | `/api/chats` | GET | Fetches all chat histories from the database. |
 | `/api/chats` | POST | Creates a chat (title/model default safely when omitted). |
 | `/api/chats/:id`| GET | Fetches details and messages for a specific chat. |
@@ -90,7 +90,7 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 - Themes: the stylesheet defines a dark "signal desk" palette and a warm-paper light palette. `auto` follows `prefers-color-scheme`; the sidebar toggle cycles `auto → light → dark` and stores the choice in `localStorage` under `theme`.
 - The empty state is built in the DOM (brand mark, kicker, model name, suggestion chips) and is re-rendered whenever the model changes with no messages loaded. Suggestion chips fill and focus the composer without sending.
 - A scroll-to-latest button appears when the transcript is more than 160px from the bottom. Streaming replies get a blinking caret class that is removed when the stream settles, and message actions (time, copy) are siblings of the bubble so copying never includes UI chrome.
-- The model picker is grouped into **Local**, **Cloud · Free**, and **Cloud · Paid**, and each cloud group carries a tier chip and count. `FREE_CLOUD_MODELS` near the top of `app.js` lists the cloud models that draw from free usage; names are compared with any `:cloud` / `-cloud` suffix removed, because the CLI (`gemma4:cloud`) and the cloud API (`gemma4:31b`) label the same model differently. The empty state repeats the cost of the selected cloud model.
+- The model picker is grouped into **Local**, **Cloud · Free**, and **Cloud · Paid**, and each cloud group carries a tier chip and count. `/api/models` tags every entry with `cloud: true|false` (see below), so grouping never depends on the model name. `FREE_CLOUD_MODELS` near the top of `app.js` lists the cloud models that draw from free usage; names are compared with any `:cloud` / `-cloud` suffix removed, because the CLI (`gemma4:cloud`) and the cloud API (`gemma4:31b`) label the same model differently. The empty state repeats the cost of the selected cloud model.
 - Typography is self-hosted: Bricolage Grotesque (display) and Instrument Sans (body/UI) are preloaded from `public/vendor/fonts/`. There are no font or script requests outside the app origin.
 
 ---

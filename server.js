@@ -169,12 +169,16 @@ function validateChatPayload(body) {
 
 // --- Model cache ---
 
-async function saveModelsToCache(models) {
+async function saveModelsToCache(models, source) {
     if (!Array.isArray(models)) return;
     const tmpFile = `${config.modelsCacheFile}.${process.pid}.tmp`;
     try {
         await fsp.mkdir(path.dirname(config.modelsCacheFile), { recursive: true });
-        await fsp.writeFile(tmpFile, JSON.stringify({ models, cachedAt: new Date().toISOString() }));
+        await fsp.writeFile(tmpFile, JSON.stringify({
+            models,
+            source: source === 'cloud' ? 'cloud' : 'local',
+            cachedAt: new Date().toISOString(),
+        }));
         await fsp.rename(tmpFile, config.modelsCacheFile);
     } catch (error) {
         console.error('[WARN] Failed to write models cache:', error.message);
@@ -187,11 +191,26 @@ function loadModelsFromCache() {
         const parsed = JSON.parse(fs.readFileSync(config.modelsCacheFile, 'utf8'));
         return {
             models: Array.isArray(parsed.models) ? parsed.models : [],
+            source: parsed.source === 'cloud' || parsed.source === 'local' ? parsed.source : null,
             cachedAt: parsed.cachedAt || null,
         };
     } catch (e) {
-        return { models: [], cachedAt: null };
+        return { models: [], source: null, cachedAt: null };
     }
+}
+
+// Cloud catalogs (`https://ollama.com/api/tags`) use plain names such as
+// `gemma4:31b`; only the CLI appends `:cloud`. The source is therefore known
+// here but not in the name, so tag every entry before sending it on. When the
+// origin is unknown (an old cache without a source), leave the field off and
+// let the client fall back to the suffix heuristic.
+function annotateModels(models, source) {
+    if (!Array.isArray(models)) return [];
+    if (source !== 'local' && source !== 'cloud') return models;
+    const cloud = source === 'cloud';
+    return models.map((model) => (
+        model && typeof model === 'object' ? { ...model, cloud } : model
+    ));
 }
 
 // --- Ollama detection ---
@@ -236,7 +255,7 @@ async function detectOllama({ force = false } = {}) {
             const data = await fetchOllamaTags(`${config.localOllamaUrl}/api/tags`);
             if (mode !== 'local') console.log('Local Ollama detected. Mode: LOCAL');
             mode = 'local';
-            await saveModelsToCache(Array.isArray(data.models) ? data.models : []);
+            await saveModelsToCache(Array.isArray(data.models) ? data.models : [], 'local');
         } catch (error) {
             const next = config.cloudApiKey ? 'cloud' : 'none';
             if (mode !== next) console.log(`Local Ollama not available. Mode: ${next.toUpperCase()}`);
@@ -454,11 +473,18 @@ app.get('/api/models', asyncHandler(async (req, res) => {
         try {
             const data = await fetchOllamaTags(`${config.localOllamaUrl}/api/tags`);
             const models = Array.isArray(data.models) ? data.models : [];
-            await saveModelsToCache(models);
-            return res.json({ models, source: 'local', stale: false });
+            await saveModelsToCache(models, 'local');
+            return res.json({ models: annotateModels(models, 'local'), source: 'local', stale: false });
         } catch (error) {
             console.error('[models] Local fetch failed:', error.message);
-            if (cached.models.length) return res.json({ ...cached, source: 'cache', stale: true });
+            if (cached.models.length) {
+                return res.json({
+                    models: annotateModels(cached.models, cached.source),
+                    cachedAt: cached.cachedAt,
+                    source: 'cache',
+                    stale: true,
+                });
+            }
             return res.status(502).json({ error: 'Failed to list local models.' });
         }
     }
@@ -467,14 +493,19 @@ app.get('/api/models', asyncHandler(async (req, res) => {
         try {
             const data = await fetchOllamaTags(`${config.cloudOllamaUrl}/tags`, true);
             const models = Array.isArray(data.models) ? data.models : [];
-            await saveModelsToCache(models);
-            return res.json({ models, source: 'cloud', stale: false });
+            await saveModelsToCache(models, 'cloud');
+            return res.json({ models: annotateModels(models, 'cloud'), source: 'cloud', stale: false });
         } catch (error) {
             console.error('[models] Cloud fetch failed:', error.message);
         }
     }
 
-    return res.json({ ...cached, source: 'cache', stale: true });
+    return res.json({
+        models: annotateModels(cached.models, cached.source),
+        cachedAt: cached.cachedAt,
+        source: 'cache',
+        stale: true,
+    });
 }));
 
 // --- Chat history ---

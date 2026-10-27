@@ -189,6 +189,39 @@ test('groups local, free cloud, and paid cloud models separately', async () => {
   assert.ok(!doc.querySelector('.empty-note').classList.contains('is-paid'));
 });
 
+test('groups cloud catalog models that carry no cloud suffix', async () => {
+  // The cloud API lists `gemma4:31b`; only the CLI appends `:cloud`. The
+  // server tags the source, so grouping must rely on the flag, not the name.
+  const { window } = boot({
+    models: [
+      { name: 'llama3:8b', cloud: false },
+      { name: 'gpt-oss:20b', cloud: true },
+      { name: 'gemma4:31b', cloud: true },
+      { name: 'nemotron-3-ultra', cloud: true },
+      { name: 'deepseek-v4-pro:0813', cloud: true },
+      { name: 'qwen3:30b', cloud: false },
+    ],
+  });
+  const doc = window.document;
+  await until(() => doc.getElementById('current-model-name').textContent === 'llama3:8b',
+    'model list to load');
+
+  const groups = [...doc.querySelectorAll('.model-group')];
+  assert.deepEqual(groups.map((group) => group.dataset.group), ['local', 'free', 'paid']);
+
+  const namesIn = (key) => [...doc.querySelectorAll(`.model-group[data-group="${key}"] .model-name`)]
+    .map((element) => element.textContent);
+  assert.deepEqual(namesIn('local'), ['llama3:8b', 'qwen3:30b']);
+  assert.deepEqual(namesIn('free'), ['gpt-oss:20b', 'gemma4:31b', 'nemotron-3-ultra']);
+  assert.deepEqual(namesIn('paid'), ['deepseek-v4-pro:0813']);
+
+  doc.querySelector('.model-option[data-value="deepseek-v4-pro:0813"]').click();
+  assert.match(doc.querySelector('.empty-note').textContent, /paid plan or usage credits/);
+
+  doc.querySelector('.model-option[data-value="gemma4:31b"]').click();
+  assert.match(doc.querySelector('.empty-note').textContent, /free plan/);
+});
+
 test('streams a reply, renders Markdown, and resets the send button', async () => {
   const { window } = boot();
   const doc = window.document;

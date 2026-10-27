@@ -1,82 +1,92 @@
-# Release Notes — v0.0.15
+# Release Notes — v0.0.16
 
 **Ollama Phone Chat** is a local-first bridge for chatting with Ollama models
 from a phone on the same Wi-Fi network. The server runs on your computer, the
 UI runs in the phone's browser, and no account or third-party service is
 involved.
 
-Cloud usage is not uniform: some cloud models run on the free plan, while
-others need a paid plan or added usage credits. That was invisible in the
-picker. This release makes the cost of each choice explicit and keeps the
-signal-desk interface from v0.0.14.
+This release fixes a regression in v0.0.15: when the app was running against
+Ollama Cloud, the model picker showed every model under **Local** and the
+**Cloud** groups never appeared.
 
 ---
 
-## ☁️ Cloud model tiers
+## 🐞 The bug
 
-- The model picker now lists **Local**, **Cloud · Free**, and **Cloud · Paid**
-  as separate groups, each with a count. Local models stay first, so the
-  offline-friendly choices remain the default path.
-- The free group covers the models that draw from free usage: `beam`,
-  `gemma4:31b`, `gpt-oss:120b`, `gpt-oss:20b`, `nemotron-3-nano:30b`,
-  `nemotron-3-super`, and `nemotron-3-ultra`.
-- Names are matched with any `:cloud` or `-cloud` suffix removed, because the
-  CLI (`gemma4:cloud`) and the cloud API (`gemma4:31b`) label the same model
-  differently.
-- A **Free** chip marks the free cloud group; a **Paid** chip marks the group
-  that requires a plan or usage credits. The empty state repeats the cost for
-  the selected cloud model, so it is visible before the first message is sent.
-- Local models are never marked as cloud, even when a cloud model shares the
-  same base name (for example a pulled `gpt-oss:20b`).
+The picker decided whether a model was local or cloud by looking at its name.
+Cloud models were expected to end in `:cloud` or `-cloud`, because that is how
+the Ollama CLI labels them. The cloud **API**, however, returns plain names:
 
-Check your usage at <https://ollama.com/settings/usage> and compare plans at
-<https://ollama.com/pricing>.
+```
+GET https://ollama.com/api/tags   →   gemma4:31b, gpt-oss:20b, ...
+ollama list (CLI)                 →   gemma4:cloud, gpt-oss:cloud, ...
+```
 
-## 🎨 Interface
+With `MODE=cloud` (or `MODE=auto` and no local Ollama running), every name
+failed the suffix test, so the whole catalogue was grouped as local. The status
+pill correctly said **Cloud** while the picker offered a **Local** section —
+the two disagreed because each used a different signal.
 
-- Themes: deep petrol "signal desk" by night, warm paper by day, following
-  `prefers-color-scheme` unless the sidebar toggle pins Auto, Light, or Dark.
-- Bricolage Grotesque and Instrument Sans are vendored as latin-subset WOFF2
-  files and preloaded, so the interface keeps its character offline and under
-  `script-src 'self'` / `font-src 'self'`.
-- Header, transcript, and composer form one flex column: the transcript owns
-  the scroll, the composer never covers the last message, and the history
-  sidebar becomes a drawer under 900px.
-- Web search, thinking, and reasoning quality live in a composer chip row for
-  models that advertise the capability, with `aria-pressed` state instead of
-  inline colors.
-- Empty-state suggestions fill the composer, a scroll-to-latest button appears
-  when you read back, streaming replies carry a caret, and message actions sit
-  beside the bubble so copying never captures UI chrome.
-- Model and quality pickers are dialogs with `aria-expanded`, `Escape` to
-  close, and a mobile bottom-sheet layout.
+## 🔧 The fix
 
-## ♿ Accessibility
+- **The server now states the source.** `/api/models` tags each entry with
+  `cloud: true` or `cloud: false`, because the server is the only place that
+  knows whether the list came from the local daemon or the cloud catalogue.
+- **The cache remembers its origin.** `models_cache.json` now stores `source`
+  next to `models` and `cachedAt`, so a cloud list served from the fallback
+  cache keeps its cloud tag instead of silently becoming local.
+- **The client trusts the tag.** Grouping, the cloud capability icon, and the
+  empty-state cost note read the tag first and only fall back to the suffix
+  heuristic for hand-written lists or caches written before this release.
+- **Free tier matching is unchanged.** Names are still compared with any
+  `:cloud` / `-cloud` suffix removed, so `gemma4:cloud` and `gemma4:31b` resolve
+  to the same free entry. Local models that happen to share a free cloud name
+  are still never marked as cloud.
 
-- Visible `:focus-visible` rings, labelled icon-only buttons, `role="log"` on
-  the transcript, and `aria-expanded` on dialogs.
-- Light-theme secondary text keeps small labels at or above WCAG AA contrast.
-- `prefers-reduced-motion` collapses animations, transitions, and smooth
-  scrolling.
+## ☁️ What the picker shows now
+
+In cloud mode:
+
+```
+CLOUD  [FREE]  7
+  beam, gemma4:31b, gpt-oss:20b, gpt-oss:120b,
+  nemotron-3-nano:30b, nemotron-3-super, nemotron-3-ultra
+
+CLOUD  [PAID]  5
+  deepseek-v4-pro:0813, glm-5.3, kimi-k2.7-code, ...
+```
+
+In local mode the **Local** group is unchanged, and a mixed list still shows
+all three groups in the order Local → Cloud · Free → Cloud · Paid. The empty
+state keeps repeating the cost of the selected model.
 
 ## 🧪 Testing
 
-`npm test` runs 24 `node:test` assertions against temporary databases,
-ephemeral ports, and a mock Ollama server. The frontend suite loads the real
-HTML and both vendored bundles in jsdom and now also verifies the Local /
-Cloud · Free / Cloud · Paid grouping, the tier chips, and the empty-state cost
-note. The UI was checked in headless Chrome at 1440×900 and 500×900 in both
-themes, with the model picker, quality sheet, sidebar, and login open.
+`npm test` now runs 26 `node:test` assertions:
+
+- a new jsdom test feeds cloud-style names without any suffix (`gemma4:31b`,
+  `deepseek-v4-pro:0813`) and asserts the group order, membership, tier chips,
+  and both empty-state cost notes;
+- a new integration test boots a real server in cloud mode against a mock
+  `/tags` endpoint and asserts that the catalogue is tagged `cloud: true`, that
+  the cache records `source: "cloud"`, and that a cached list served after the
+  catalogue goes away keeps its tag;
+- the local-mode API test now asserts that local models are tagged
+  `cloud: false` and that the cache records `source: "local"`.
+
+The picker was also verified in headless Chrome at 1440×900 and 500×900 in
+both themes against a cloud catalogue, and the change was checked end to end
+against the live cloud API (23 models, all tagged).
 
 ---
 
 ## ⚙️ Upgrade notes
 
-- No configuration, API, or database changes. Updating the files is enough;
-  run `npm install` only if you skipped a previous release.
-- The free-model list lives in `FREE_CLOUD_MODELS` in `public/app.js`; update
-  it when Ollama changes its plans.
-- Cached asset URLs remain at `?v=5`.
+- Restart the server after updating; the first `/api/models` call rewrites the
+  cache with its source.
+- `app.js` is now requested as `?v=6`. `styles.css` is unchanged at `?v=5`.
+- No configuration, API, or database changes. `MODE`, `OLLAMA_API_KEY`, and
+  `OLLAMA_CLOUD_URL` work as before.
 
 ## 🚀 Getting started
 
@@ -89,7 +99,7 @@ npm start
 
 Scan the QR code shown in the terminal, or open the printed LAN URL on a phone
 connected to the same network. If Ollama is not running locally and you have a
-cloud API key, set `MODE=cloud` and `OLLAMA_API_KEY` in `.env`.
+cloud API key, set `MODE=cloud` (or `auto`) and `OLLAMA_API_KEY` in `.env`.
 
 ## 🧱 Stack
 

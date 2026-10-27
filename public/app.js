@@ -337,8 +337,9 @@ function showEmptyState() {
     wrap.appendChild(title);
     wrap.appendChild(copy);
 
-    if (state.currentModel && isCloudModel(state.currentModel)) {
-        const free = isFreeCloudModel(state.currentModel);
+    const currentModel = state.models.find((model) => model.name === state.currentModel);
+    if (currentModel && isCloudModel(currentModel)) {
+        const free = isFreeCloudModel(currentModel);
         const note = document.createElement('p');
         note.className = 'empty-note' + (free ? '' : ' is-paid');
         note.textContent = free
@@ -432,9 +433,10 @@ function renderChatList() {
     }
 }
 
-function getModelCapabilities(name) {
+function getModelCapabilities(model) {
     const caps = [];
-    const normalized = String(name || '').toLowerCase().replace(/[_:]/g, ' ');
+    const name = typeof model === 'string' ? model : (model && model.name) || '';
+    const normalized = String(name).toLowerCase().replace(/[_:]/g, ' ');
 
     const reasoningKeywords = ['gpt', 'deepseek r1', 'deepseek 3.1', 'deepseek 3.2', 'deepseek v3', 'o1', 'o3', 'reasoning', 'thinking', 'qwq'];
     if (reasoningKeywords.some((keyword) => normalized.includes(keyword))) {
@@ -456,14 +458,21 @@ function getModelCapabilities(name) {
         caps.push({ type: 'size', icon: '⚡', label: 'Fast' });
     }
 
-    if (isCloudModel(name)) {
+    if (isCloudModel(model)) {
         caps.push({ type: 'cloud', icon: '☁️', label: 'Cloud' });
     }
 
     return caps;
 }
 
-function isCloudModel(name) {
+// The server tags each entry with `cloud` because the cloud catalog uses plain
+// names (`gemma4:31b`) while only the CLI appends `:cloud`. Fall back to the
+// suffix for cached lists and hand-written model entries.
+function isCloudModel(model) {
+    if (model && typeof model === 'object' && typeof model.cloud === 'boolean') {
+        return model.cloud;
+    }
+    const name = typeof model === 'string' ? model : model && model.name;
     return /(?:^|[:\-])cloud$/i.test(String(name || '').trim());
 }
 
@@ -471,8 +480,10 @@ function normalizeCloudName(name) {
     return String(name || '').trim().toLowerCase().replace(/[:\-]cloud$/, '');
 }
 
-function isFreeCloudModel(name) {
-    return isCloudModel(name) && FREE_CLOUD_MODELS.has(normalizeCloudName(name));
+function isFreeCloudModel(model) {
+    if (!isCloudModel(model)) return false;
+    const name = typeof model === 'string' ? model : model && model.name;
+    return FREE_CLOUD_MODELS.has(normalizeCloudName(name));
 }
 
 function createModelOption(model) {
@@ -503,7 +514,7 @@ function createModelOption(model) {
 
     const capabilities = document.createElement('div');
     capabilities.className = 'model-capabilities';
-    for (const cap of getModelCapabilities(model.name)) {
+    for (const cap of getModelCapabilities(model)) {
         const icon = document.createElement('span');
         icon.className = 'capability-icon';
         icon.title = cap.label;
@@ -572,8 +583,8 @@ function renderModelSelect() {
         { key: 'paid', label: 'Cloud', tier: 'paid', models: [] },
     ];
     for (const model of sorted) {
-        if (!isCloudModel(model.name)) groups[0].models.push(model);
-        else if (isFreeCloudModel(model.name)) groups[1].models.push(model);
+        if (!isCloudModel(model)) groups[0].models.push(model);
+        else if (isFreeCloudModel(model)) groups[1].models.push(model);
         else groups[2].models.push(model);
     }
 

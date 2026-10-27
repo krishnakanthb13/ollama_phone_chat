@@ -157,6 +157,11 @@ test('lists models and streams a persisted chat', async () => {
   const models = await (await fetch(`${base}/api/models`, { headers: AUTH })).json();
   assert.equal(models.source, 'local');
   assert.ok(models.models.some((model) => model.name === 'llama3:8b'));
+  assert.ok(models.models.every((model) => model.cloud === false),
+    'local models must not be tagged as cloud');
+
+  const cache = JSON.parse(fs.readFileSync(process.env.MODELS_CACHE, 'utf8'));
+  assert.equal(cache.source, 'local');
 
   const response = await sendChat({
     model: 'llama3:8b',
