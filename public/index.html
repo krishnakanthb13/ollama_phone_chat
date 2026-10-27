@@ -4,147 +4,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f0f0f">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0a1215" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f1e8" media="(prefers-color-scheme: light)">
   <meta name="description" content="Chat with local or cloud Ollama models from your phone.">
   <title>Ollama Connect</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="preload" href="vendor/fonts/instrument-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="vendor/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=5">
   <script src="vendor/marked.umd.js?v=18.1.2"></script>
   <script src="vendor/purify.min.js?v=3.4.17"></script>
 </head>
 
 <body>
+  <!-- Inline icon sprite: same-origin, no requests, usable by markup and app.js. -->
+  <svg class="svg-sprite" aria-hidden="true" focusable="false">
+    <symbol id="brand-mark" viewBox="0 0 32 32">
+      <rect x="1.5" y="1.5" width="29" height="29" rx="9" fill="currentColor" opacity=".12" />
+      <path d="M7 21.5v-3.2a9 9 0 0 1 18 0v3.2" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" />
+      <circle cx="16" cy="21.5" r="2.4" fill="currentColor" />
+    </symbol>
+    <symbol id="icon-menu" viewBox="0 0 24 24">
+      <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7" />
+      <path d="M3.5 12h17M12 3.5c2.6 2.4 4 5.3 4 8.5s-1.4 6.1-4 8.5c-2.6-2.4-4-5.3-4-8.5s1.4-6.1 4-8.5Z"
+        fill="none" stroke="currentColor" stroke-width="1.7" />
+    </symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24">
+      <path d="M12 3.5l1.9 5.4 5.6 2-5.6 2-1.9 5.4-1.9-5.4-5.6-2 5.6-2L12 3.5Z" fill="none"
+        stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+      <circle cx="18.5" cy="5.5" r="1.4" fill="currentColor" />
+    </symbol>
+    <symbol id="icon-bars" viewBox="0 0 24 24">
+      <path d="M6 18v-4M12 18V9M18 18V5" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-down" viewBox="0 0 24 24">
+      <path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-eye" viewBox="0 -960 960 960">
+      <path fill="currentColor"
+        d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 228q113 0 207.5-58.5T833-500q-47-71-141.5-129.5T480-688q-113 0-207.5 58.5T127-500q47 71 141.5 129.5T480-272Z" />
+    </symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24">
+      <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13M10 11v5M14 11v5" fill="none" stroke="currentColor"
+        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+  </svg>
 
   <div id="app">
     <!-- Mobile Overlay -->
     <div id="overlay"></div>
 
     <!-- Sidebar -->
-    <aside id="sidebar">
-      <div class="sidebar-header">
-        <h3>Chats</h3>
-        <button id="close-sidebar-btn" class="menu-btn" style="font-size: 1rem;" aria-label="Close chat list">✕</button>
+    <aside id="sidebar" aria-label="Conversations">
+      <div class="sidebar-brand">
+        <svg class="brand-mark" aria-hidden="true" focusable="false">
+          <use href="#brand-mark" />
+        </svg>
+        <span class="brand-text">
+          <span class="brand-name">Ollama Connect</span>
+          <span class="brand-sub">Local bridge</span>
+        </span>
+        <button id="close-sidebar-btn" class="menu-btn sidebar-close" type="button" aria-label="Close chat list">
+          <svg class="icon" aria-hidden="true">
+            <use href="#icon-close" />
+          </svg>
+        </button>
       </div>
 
-      <button class="new-chat-btn" id="new-chat-btn">
-        <span>+</span> New Chat
+      <button class="new-chat-btn" id="new-chat-btn" type="button">
+        <svg class="icon" aria-hidden="true">
+          <use href="#icon-plus" />
+        </svg>
+        <span>New conversation</span>
       </button>
+
+      <div class="sidebar-section">
+        <span>History</span>
+        <span class="chat-count" id="chat-count">0</span>
+      </div>
 
       <div class="chat-list" id="chat-list">
         <!-- Chat items injected here -->
       </div>
 
-      <!-- Hidden elements for logic binding if needed, but we will move controls to header -->
-      <input type="checkbox" id="thinking-toggle" style="display: none;">
+      <input type="checkbox" id="thinking-toggle" class="visually-hidden" tabindex="-1" aria-hidden="true">
 
       <div class="sidebar-footer">
-        <div class="font-size-changer">
-          <button class="font-btn" data-size="small" title="Small Font" aria-label="Small font">A</button>
-          <button class="font-btn active" data-size="medium" title="Medium Font" aria-label="Medium font">A</button>
-          <button class="font-btn" data-size="large" title="Large Font" aria-label="Large font">A</button>
+        <div class="font-size-changer" role="group" aria-label="Text size">
+          <button class="font-btn" type="button" data-size="small" title="Small font" aria-label="Small font">A</button>
+          <button class="font-btn active" type="button" data-size="medium" title="Medium font"
+            aria-label="Medium font">A</button>
+          <button class="font-btn" type="button" data-size="large" title="Large font" aria-label="Large font">A</button>
         </div>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Theme: auto. Change theme">
+          <span class="theme-icon" aria-hidden="true">◐</span>
+          <span class="theme-label">Auto</span>
+        </button>
       </div>
     </aside>
 
     <!-- Main Content -->
     <main id="main-content">
       <header>
-        <!-- Left: Menu Button -->
-        <button class="menu-btn" id="menu-btn" aria-label="Open chat list">
-          <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
-            fill="currentColor">
-            <path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z" />
+        <button class="menu-btn" id="menu-btn" type="button" aria-label="Open chat list">
+          <svg class="icon" aria-hidden="true">
+            <use href="#icon-menu" />
           </svg>
         </button>
 
-        <!-- Center: Model Selector -->
-        <!-- Center: Model Selector & Controls -->
-        <div class="model-selector-container"
-          style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
-          <button type="button" class="model-selector" id="model-selector-btn" aria-label="Select model">
-            <span id="current-model-name" style="flex: 1; text-align: center;">Loading...</span>
-            <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
-              fill="currentColor" aria-hidden="true">
-              <path d="M480-360 280-560h400L480-360Z" />
+        <button type="button" class="model-selector" id="model-selector-btn" aria-label="Select model"
+          aria-haspopup="dialog" aria-controls="model-modal" aria-expanded="false">
+          <span class="model-eyebrow" aria-hidden="true">Model</span>
+          <span id="current-model-name">Loading&hellip;</span>
+          <svg class="icon icon-chevron" aria-hidden="true">
+            <use href="#icon-chevron" />
+          </svg>
+        </button>
+
+        <div class="header-actions">
+          <div class="status-indicator" id="status-indicator" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="status-text">Offline</span>
+          </div>
+          <button class="icon-btn" id="header-new-chat-btn" type="button" title="New chat" aria-label="New chat">
+            <svg class="icon" aria-hidden="true">
+              <use href="#icon-plus" />
             </svg>
           </button>
-
-          <!-- Interactive Controls (Always visible as requested) -->
-          <div id="header-controls" style="display: flex; align-items: center; gap: 6px;">
-            <button id="search-btn" class="icon-btn" title="Toggle Web Search" aria-label="Toggle web search"
-              aria-pressed="false"
-              style="background: var(--bg-tertiary); border-radius: 50%; width: 32px; height: 32px; border: 1px solid var(--border); font-size: 0.8rem; color: var(--text-secondary);">
-              🌐
-            </button>
-            <button id="thinking-btn" class="icon-btn" title="Toggle Thinking" aria-label="Toggle thinking output"
-              aria-pressed="false"
-              style="background: var(--bg-tertiary); border-radius: 50%; width: 32px; height: 32px; border: 1px solid var(--border); font-size: 0.8rem;">
-              🧠
-            </button>
-            <button type="button" class="quality-selector" id="quality-selector-btn" aria-label="Reasoning quality">
-              <span id="current-quality-name">Std</span>
-              <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px"
-                fill="currentColor" aria-hidden="true">
-                <path d="M480-360 280-560h400L480-360Z" />
-              </svg>
-            </button>
-            <!-- Hidden original select for background logic compatibility -->
-            <select id="quality-select" style="display: none;">
-              <option value="none">Std</option>
-              <option value="low">Low</option>
-              <option value="medium">Med</option>
-              <option value="high">High</option>
-            </select>
-          </div>
         </div>
+      </header>
 
-        <!-- Quality Modal -->
-        <div id="quality-modal" class="model-modal-container">
-          <div class="model-modal-content" style="max-width: 300px;">
+      <!-- Quality Modal -->
+        <div id="quality-modal" class="model-modal-container" role="dialog" aria-modal="true"
+          aria-labelledby="quality-modal-title">
+          <div class="model-modal-content compact">
             <div class="model-modal-header">
-              <h3>Reasoning Quality</h3>
-              <button class="close-modal-btn" id="close-quality-modal" aria-label="Close reasoning quality">×</button>
+              <div>
+                <span class="modal-kicker">Generation</span>
+                <h3 id="quality-modal-title">Reasoning quality</h3>
+              </div>
+              <button class="close-modal-btn" id="close-quality-modal" type="button"
+                aria-label="Close reasoning quality">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#icon-close" />
+                </svg>
+              </button>
             </div>
             <div class="model-list-container">
               <div class="model-option" data-quality="none" role="button" tabindex="0">
                 <div class="model-info">
-                  <span class="model-name">≡ Standard</span>
+                  <span class="model-name">Standard</span>
+                  <span class="option-meta">Balanced default</span>
                 </div>
               </div>
               <div class="model-option" data-quality="low" role="button" tabindex="0">
                 <div class="model-info">
-                  <span class="model-name">≡ Low Reasoning</span>
+                  <span class="model-name">Low reasoning</span>
+                  <span class="option-meta">Faster replies</span>
                 </div>
               </div>
               <div class="model-option" data-quality="medium" role="button" tabindex="0">
                 <div class="model-info">
-                  <span class="model-name">≡ Med Reasoning</span>
+                  <span class="model-name">Medium reasoning</span>
+                  <span class="option-meta">More deliberate</span>
                 </div>
               </div>
               <div class="model-option" data-quality="high" role="button" tabindex="0">
                 <div class="model-info">
-                  <span class="model-name">≡ High Reasoning</span>
+                  <span class="model-name">High reasoning</span>
+                  <span class="option-meta">Slowest, most thorough</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Model Modal (Fullscreen overlay) -->
-        <div id="model-modal" class="model-modal-container">
+        <!-- Model Modal -->
+        <div id="model-modal" class="model-modal-container" role="dialog" aria-modal="true"
+          aria-labelledby="model-modal-title">
           <div class="model-modal-content">
             <div class="model-modal-header">
-              <h3>Select Model</h3>
-              <button class="close-modal-btn" id="close-model-modal" aria-label="Close model list">×</button>
+              <div>
+                <span class="modal-kicker">Connection</span>
+                <h3 id="model-modal-title">Choose a model</h3>
+              </div>
+              <button class="close-modal-btn" id="close-model-modal" type="button" aria-label="Close model list">
+                <svg class="icon" aria-hidden="true">
+                  <use href="#icon-close" />
+                </svg>
+              </button>
             </div>
             <div class="sorting-controls">
-              <button class="sort-btn active" id="sort-default">
+              <button class="sort-btn active" id="sort-default" type="button">
                 <span>Default</span>
               </button>
-              <button class="sort-btn" id="sort-az">
+              <button class="sort-btn" id="sort-az" type="button">
                 <span>A-Z</span>
-                <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px"
-                  fill="currentColor">
-                  <path d="M480-120v-480l-160 160-56-56 256-256 256 256-56 56-160-160v480H480Z" />
+                <svg class="icon icon-sort" aria-hidden="true">
+                  <use href="#icon-down" />
                 </svg>
               </button>
             </div>
@@ -154,70 +227,99 @@
           </div>
         </div>
 
-        <!-- Right: New Chat & Status -->
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <button class="icon-btn" id="header-new-chat-btn" title="New Chat" aria-label="New chat">
-            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"
-              fill="currentColor">
-              <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-            </svg>
-          </button>
-
-          <!-- Capability Icons moved to center controls -->
-
-          <div class="status-indicator" id="status-indicator"></div>
-        </div>
-      </header>
-
       <div id="chat-container">
-        <div id="messages-area" role="log" aria-live="polite" aria-label="Conversation">
+        <div id="messages-area" role="log" aria-live="polite" aria-relevant="additions text"
+          aria-label="Conversation">
           <!-- Messages injected here -->
-          <div class="empty-state">Start a conversation</div>
+          <div class="empty-state">
+            <h2>Start a conversation</h2>
+            <p class="empty-copy">Choose a model to begin. Your history stays on this machine.</p>
+          </div>
         </div>
       </div>
 
       <footer>
+        <button class="scroll-bottom" id="scroll-bottom-btn" type="button" aria-label="Scroll to latest message">
+          <svg class="icon" aria-hidden="true">
+            <use href="#icon-down" />
+          </svg>
+        </button>
+
+        <div class="composer-tools" id="composer-tools">
+          <button id="search-btn" class="chip tool-chip" type="button" title="Toggle web search"
+            aria-label="Toggle web search" aria-pressed="false">
+            <svg class="icon chip-icon" aria-hidden="true">
+              <use href="#icon-globe" />
+            </svg>
+            <span>Web</span>
+          </button>
+          <button id="thinking-btn" class="chip tool-chip" type="button" title="Toggle thinking output"
+            aria-label="Toggle thinking output" aria-pressed="false">
+            <svg class="icon chip-icon" aria-hidden="true">
+              <use href="#icon-spark" />
+            </svg>
+            <span>Think</span>
+          </button>
+          <button type="button" class="chip quality-selector" id="quality-selector-btn"
+            aria-label="Reasoning quality" aria-haspopup="dialog" aria-controls="quality-modal"
+            aria-expanded="false">
+            <svg class="icon chip-icon" aria-hidden="true">
+              <use href="#icon-bars" />
+            </svg>
+            <span id="current-quality-name">Std</span>
+          </button>
+          <span class="composer-hint" id="composer-hint">Enter to send &middot; Shift+Enter for a new line</span>
+        </div>
+
         <div class="input-wrapper">
           <textarea id="user-input" rows="1" placeholder="Message Ollama..." aria-label="Message"></textarea>
-          <button id="send-btn" disabled aria-label="Send message">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <button id="send-btn" type="button" disabled aria-label="Send message">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
               <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
             </svg>
           </button>
         </div>
+        <select id="quality-select" class="visually-hidden" tabindex="-1" aria-hidden="true">
+          <option value="none">Std</option>
+          <option value="low">Low</option>
+          <option value="medium">Med</option>
+          <option value="high">High</option>
+        </select>
       </footer>
     </main>
 
     <!-- Login Overlay -->
-    <div id="login-overlay" role="dialog" aria-modal="true" aria-label="Sign in"
-      style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-primary); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 2rem;">
-      <div
-        style="background: var(--bg-secondary); padding: 2rem; border-radius: 16px; border: 1px solid var(--border); width: 100%; max-width: 320px; text-align: center;">
-        <h2 style="margin-bottom: 0.5rem;">Secure Access</h2>
-        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Please enter your personal
-          password to continue.</p>
-        <div style="position: relative; margin-bottom: 1rem;">
-          <input type="password" id="login-password" placeholder="App Password" aria-label="App password"
-            style="width: 100%; padding: 0.75rem; padding-right: 2.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); outline: none;">
-          <button id="toggle-password"
-            aria-label="Show or hide password"
-            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;">
-            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px"
-              fill="currentColor">
-              <path
-                d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 228q113 0 207.5-58.5T833-500q-47-71-141.5-129.5T480-688q-113 0-207.5 58.5T127-500q47 71 141.5 129.5T480-272Z" />
+    <div id="login-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title" style="display: none;">
+      <div class="login-card">
+        <div class="login-brand">
+          <svg class="brand-mark" aria-hidden="true" focusable="false">
+            <use href="#brand-mark" />
+          </svg>
+          <span class="brand-text">
+            <span class="brand-name">Ollama Connect</span>
+            <span class="brand-sub">Local bridge</span>
+          </span>
+        </div>
+        <span class="modal-kicker">Private access</span>
+        <h2 id="login-title">Unlock your bridge</h2>
+        <p>Enter the app password to reach your models and history.</p>
+        <div class="login-field">
+          <input type="password" id="login-password" placeholder="App password" aria-label="App password"
+            autocomplete="current-password">
+          <button id="toggle-password" type="button" aria-label="Show password">
+            <svg id="eye-icon" class="icon" aria-hidden="true">
+              <use href="#icon-eye" />
             </svg>
           </button>
         </div>
-        <button id="login-btn"
-          style="width: 100%; padding: 0.75rem; border-radius: 8px; border: none; background: var(--accent); color: white; font-weight: 600; cursor: pointer;">Connect</button>
-        <p id="login-error" role="alert" style="color: var(--error); font-size: 0.8rem; margin-top: 1rem; display: none;">Invalid
-          password</p>
+        <button id="login-btn" type="button">Connect</button>
+        <p id="login-error" class="login-error" role="alert">Invalid password</p>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 
 </html>

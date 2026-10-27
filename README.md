@@ -12,7 +12,9 @@
 ## 🚀 Key Features
 
 -   **Zero-Config Connection**: Just scan the QR code in your terminal and start chatting.
--   **Mobile-First Design**: A premium, responsive interface designed for thumbs and small screens.
+-   **Mobile-First Design**: A premium, responsive "signal desk" interface built for thumbs: centred composer, scroll-to-latest, and a slide-over history drawer.
+-   **Light & Dark Themes**: A warm-paper daylight palette and a deep petrol night palette. Follows your system by default; the sidebar toggle cycles Auto → Light → Dark.
+-   **Self-Hosted Typography**: Bricolage Grotesque and Instrument Sans ship with the app, so the interface keeps its character offline and under a strict CSP.
 -   **"Thinking" Support**: Visualize the reasoning process of models (like DeepSeek) in real-time.
 -   **Stop Generation**: Cancel a streaming reply at any time without losing the partial answer.
 -   **Safe Rendering**: Model output is sanitized and titles are rendered as text, not HTML.
@@ -22,7 +24,7 @@
 -   **Encrypted History**: Messages and chat titles are encrypted at rest with AES-256-GCM and scrypt key derivation (requires `APP_PASSWORD`).
 -   **Secure Access**: Lock your bridge with a password for safe LAN/WAN usage.
 -   **Privacy First**: 100% local. Your data never leaves your home network.
--   **Offline-Ready UI**: Markdown rendering and sanitization libraries are vendored, so the interface loads without a CDN.
+-   **Offline-Ready UI**: Markdown rendering, sanitization, and both font families are vendored, so the interface loads without a CDN.
 
 ---
 

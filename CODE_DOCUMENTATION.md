@@ -24,9 +24,11 @@ graph TD
 | `config.js` | Central configuration loaded from environment variables (port, host, mode, timeouts, limits). |
 | `db.js` | Database initialization, migrations, encryption, and the chat/message repository. |
 | `public/` | Static files for the frontend. |
-| `public/index.html` | The main UI structure (mobile-first). Includes font size controls. |
-| `public/app.js` | Frontend logic: state management, SSE handling, UI rendering, and font scaling. |
-| `public/styles.css` | Design system, responsive layouts, and typography presets. |
+| `public/index.html` | The main UI structure (mobile-first): sidebar, header, transcript, composer, modals. |
+| `public/app.js` | Frontend logic: state management, SSE handling, UI rendering, theming, and font scaling. |
+| `public/styles.css` | Design system, live theme tokens, responsive layouts, and typography presets. |
+| `public/vendor/` | Vendored `marked` and DOMPurify bundles plus their licenses. |
+| `public/vendor/fonts/` | Vendored WOFF2 display/body fonts and their OFL licenses (no CDN). |
 | `data/` | Directory containing the SQLite database (`chats.db`). |
 | `models_cache.json` | Local cache of Ollama models for offline/fallback mode. |
 | `seed_prompt.txt` | Default system prompt template. |
@@ -83,6 +85,12 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 - The send button becomes a stop button while streaming and aborts the fetch; the server keeps the partial reply.
 - A `401` clears the stored password and returns to the login screen. A saved password is verified against `/api/auth/verify` before use.
 - Timestamps from SQLite are treated as UTC. Interactions are keyboard accessible, and toggles expose `aria-pressed`.
+- The layout is a flex column (`header` / `#chat-container` / `footer`) with no absolute overlays, so the transcript owns the scroll and the composer never covers the last message. Under 900px the sidebar becomes an overlay drawer.
+- Web search, thinking, and quality controls live in a composer tools row. Chips are shown only for models whose names advertise the capability, and state is expressed with classes (`is-on`) plus `aria-pressed` rather than inline colors.
+- Themes: the stylesheet defines a dark "signal desk" palette and a warm-paper light palette. `auto` follows `prefers-color-scheme`; the sidebar toggle cycles `auto → light → dark` and stores the choice in `localStorage` under `theme`.
+- The empty state is built in the DOM (brand mark, kicker, model name, suggestion chips) and is re-rendered whenever the model changes with no messages loaded. Suggestion chips fill and focus the composer without sending.
+- A scroll-to-latest button appears when the transcript is more than 160px from the bottom. Streaming replies get a blinking caret class that is removed when the stream settles, and message actions (time, copy) are siblings of the bubble so copying never includes UI chrome.
+- Typography is self-hosted: Bricolage Grotesque (display) and Instrument Sans (body/UI) are preloaded from `public/vendor/fonts/`. There are no font or script requests outside the app origin.
 
 ---
 
@@ -98,8 +106,9 @@ The module exposes a repository API (`createChat`, `listChats`, `getChat`, `getM
 ### Frontend
 - `marked` 18.1.2: Markdown parsing, vendored at `public/vendor/marked.umd.js` (MIT).
 - `DOMPurify` 3.4.17: HTML sanitization, vendored at `public/vendor/purify.min.js` (Apache-2.0 OR MPL-2.0).
+- Bricolage Grotesque Variable 5.3.0 and Instrument Sans Variable 5.3.0: display and body faces, vendored as latin-subset WOFF2 at `public/vendor/fonts/` (SIL OFL 1.1).
 
-Both libraries are served locally: the UI does not need internet access to load, and `script-src 'self'` can be enforced. Licenses and checksums are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+All of them are served locally: the UI does not need internet access to load, and `script-src 'self'` / `font-src 'self'` can be enforced. Licenses and checksums are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ---
 

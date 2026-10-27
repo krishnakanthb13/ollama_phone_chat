@@ -21,6 +21,7 @@ const state = {
     appPassword: localStorage.getItem('appPassword') || '',
     abortController: null,
     initialized: false,
+    mode: 'local',
 };
 
 const MAX_CONTEXT_MESSAGES = 40;
@@ -45,11 +46,15 @@ const dom = {
     chatList: document.getElementById('chat-list'),
     newChatBtn: document.getElementById('new-chat-btn'),
     statusIndicator: document.getElementById('status-indicator'),
+    chatContainer: document.getElementById('chat-container'),
+    scrollBottomBtn: document.getElementById('scroll-bottom-btn'),
     messagesArea: document.getElementById('messages-area'),
     textInput: document.getElementById('user-input'),
     sendBtn: document.getElementById('send-btn'),
     qualitySelect: document.getElementById('quality-select'),
     thinkingToggle: document.getElementById('thinking-toggle'),
+    themeToggle: document.getElementById('theme-toggle'),
+    chatCount: document.getElementById('chat-count'),
     loginOverlay: document.getElementById('login-overlay'),
     loginPassword: document.getElementById('login-password'),
     loginError: document.getElementById('login-error'),
@@ -119,6 +124,19 @@ function newClientId() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// Builds an SVG reference to a symbol in the inline sprite. Keeping icons as
+// DOM nodes avoids HTML string concatenation in the render path.
+function iconUse(id, className = 'icon') {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', className);
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', `#${id}`);
+    svg.appendChild(use);
+    return svg;
+}
+
 // --- Button/input state ---
 
 function updateSendButtonState() {
@@ -172,8 +190,8 @@ function copyToClipboard(text) {
     });
 }
 
-function addMessageActions(container, msg) {
-    if (!container || container.querySelector('.message-actions')) return;
+function addMessageActions(messageDiv, contentEl, msg) {
+    if (!messageDiv || messageDiv.querySelector('.message-actions')) return;
 
     const actions = document.createElement('div');
     actions.className = 'message-actions';
@@ -191,9 +209,8 @@ function addMessageActions(container, msg) {
 
     copyBtn.addEventListener('click', (event) => {
         event.stopPropagation();
-        const clone = container.cloneNode(true);
-        const cloneActions = clone.querySelector('.message-actions');
-        if (cloneActions) cloneActions.remove();
+        const clone = contentEl.cloneNode(true);
+        clone.querySelectorAll('.message-actions').forEach((node) => node.remove());
         const text = (clone.innerText || clone.textContent || '').trim();
         copyToClipboard(text).then(() => {
             copyBtn.textContent = '✓';
@@ -212,20 +229,31 @@ function addMessageActions(container, msg) {
         actions.appendChild(time);
     }
 
-    container.appendChild(actions);
+    // Actions live beside the bubble, never inside it, so copied text stays clean.
+    messageDiv.appendChild(actions);
 }
 
 // --- Rendering ---
 
 function isNearBottom() {
-    const area = dom.messagesArea;
+    const area = dom.chatContainer || dom.messagesArea;
     return area.scrollHeight - area.scrollTop - area.clientHeight < 160;
 }
 
+function updateScrollButton() {
+    if (!dom.chatContainer || !dom.scrollBottomBtn) return;
+    const distance = dom.chatContainer.scrollHeight
+        - dom.chatContainer.scrollTop
+        - dom.chatContainer.clientHeight;
+    dom.scrollBottomBtn.classList.toggle('visible', distance > 160);
+}
+
 function scrollToBottom(force = false) {
+    const area = dom.chatContainer || dom.messagesArea;
     if (force || isNearBottom()) {
-        dom.messagesArea.scrollTop = dom.messagesArea.scrollHeight;
+        area.scrollTop = area.scrollHeight;
     }
+    updateScrollButton();
 }
 
 function appendMessageToUI(msg) {
@@ -244,20 +272,69 @@ function appendMessageToUI(msg) {
     if (msg.role === 'user') content.textContent = msg.content;
     else renderMarkdown(content, msg.content || '');
 
-    addMessageActions(content, msg);
     div.appendChild(content);
+    addMessageActions(div, content, msg);
     dom.messagesArea.appendChild(div);
     scrollToBottom();
     return { div, content };
 }
 
+const SUGGESTIONS = [
+    'Summarise this in three bullets',
+    'Explain it like I am new to the topic',
+    'Draft a short, friendly email',
+    'Compare the options and recommend one',
+];
+
 function showEmptyState() {
     dom.messagesArea.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.className = 'empty-state';
-    const title = document.createElement('div');
-    title.textContent = state.currentModel ? `Start a conversation using ${state.currentModel}` : 'Select a model to start chatting';
+
+    const mark = document.createElement('div');
+    mark.className = 'empty-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.appendChild(iconUse('brand-mark'));
+
+    const kicker = document.createElement('p');
+    kicker.className = 'empty-kicker';
+    kicker.textContent = 'Ready when you are';
+
+    const title = document.createElement('h2');
+    title.textContent = state.currentModel
+        ? `Start a conversation using ${state.currentModel}`
+        : 'Select a model to start chatting';
+
+    const copy = document.createElement('p');
+    copy.className = 'empty-copy';
+    copy.textContent = state.currentModel
+        ? 'Ask anything, or start with one of these.'
+        : 'Choose a model from the header to begin.';
+
+    wrap.appendChild(mark);
+    wrap.appendChild(kicker);
     wrap.appendChild(title);
+    wrap.appendChild(copy);
+
+    if (state.currentModel) {
+        const grid = document.createElement('div');
+        grid.className = 'suggestion-grid';
+        for (const text of SUGGESTIONS) {
+            const suggestion = document.createElement('button');
+            suggestion.type = 'button';
+            suggestion.className = 'suggestion';
+            suggestion.textContent = text;
+            suggestion.addEventListener('click', () => {
+                dom.textInput.value = text;
+                autoResizeInput();
+                updateSendButtonState();
+                dom.textInput.focus();
+            });
+            grid.appendChild(suggestion);
+        }
+        wrap.appendChild(grid);
+    }
+
     dom.messagesArea.appendChild(wrap);
 }
 
@@ -273,6 +350,7 @@ function renderMessages() {
 
 function renderChatList() {
     dom.chatList.innerHTML = '';
+    if (dom.chatCount) dom.chatCount.textContent = String(state.chats.length);
     if (!state.chats.length) {
         const empty = document.createElement('div');
         empty.className = 'chat-list-empty';
@@ -301,7 +379,7 @@ function renderChatList() {
         remove.className = 'delete-chat';
         remove.title = 'Delete chat';
         remove.setAttribute('aria-label', `Delete chat ${chat.title || 'Untitled'}`);
-        remove.textContent = '🗑️';
+        remove.appendChild(iconUse('icon-trash'));
         remove.addEventListener('click', (event) => {
             event.stopPropagation();
             deleteChat(chat.id);
@@ -455,7 +533,8 @@ function isModelAvailable(name) {
     return state.models.some((model) => model.name === name);
 }
 
-function selectModel(name, { closeModal = true } = {}) {    if (!isModelAvailable(name)) return;
+function selectModel(name, { closeModal = true } = {}) {
+    if (!isModelAvailable(name)) return;
     state.currentModel = name;
     localStorage.setItem('lastModel', name);
 
@@ -479,6 +558,7 @@ async function checkStatus() {
         if (!response.ok) throw new Error(`Status ${response.status}`);
         const data = await response.json();
         state.isConnected = Boolean(data.connected);
+        state.mode = typeof data.mode === 'string' ? data.mode : 'local';
         updateStatusUI();
         return data;
     } catch (error) {
@@ -675,9 +755,10 @@ function createStreamingBubble() {
     div.className = 'message assistant-msg';
 
     const content = document.createElement('div');
-    content.className = 'message-content markdown-body';
+    content.className = 'message-content markdown-body streaming';
     div.appendChild(content);
     dom.messagesArea.appendChild(div);
+    scrollToBottom(true);
 
     return {
         div,
@@ -820,7 +901,7 @@ async function sendMessage() {
         if (currentContent) renderMarkdown(bubble.content, currentContent);
 
         if (currentContent || currentThinking) {
-            addMessageActions(bubble.content, assistantMsg);
+            addMessageActions(bubble.div, bubble.content, assistantMsg);
         }
         if (!sawDone && (currentContent || currentThinking)) {
             bubble.warning('The connection ended before the reply finished.');
@@ -837,7 +918,7 @@ async function sendMessage() {
         if (currentContent || currentThinking) {
             assistantMsg.content = currentContent;
             assistantMsg.thinking = currentThinking;
-            addMessageActions(bubble.content, assistantMsg);
+            addMessageActions(bubble.div, bubble.content, assistantMsg);
             bubble.warning(aborted ? 'Generation stopped.' : `Error: ${error.message}`);
         } else {
             state.messages = state.messages.filter((message) => message !== assistantMsg);
@@ -849,6 +930,7 @@ async function sendMessage() {
         }
     } finally {
         state.abortController = null;
+        bubble.content.classList.remove('streaming');
         setSending(false);
         scrollToBottom();
     }
@@ -859,7 +941,12 @@ async function sendMessage() {
 function updateStatusUI() {
     if (!dom.statusIndicator) return;
     dom.statusIndicator.classList.toggle('connected', state.isConnected);
-    dom.statusIndicator.title = state.isConnected ? 'Connected' : 'Disconnected';
+    const label = !state.isConnected
+        ? 'Offline'
+        : (state.mode === 'cloud' ? 'Cloud' : 'Local');
+    dom.statusIndicator.title = state.isConnected ? `Connected · ${label}` : 'Disconnected';
+    const text = dom.statusIndicator.querySelector('.status-text');
+    if (text) text.textContent = label;
 }
 
 function showGlobalError(message) {
@@ -906,6 +993,21 @@ function closeSidebar() {
 function closeModelModal() {
     const modal = document.getElementById('model-modal');
     if (modal) modal.classList.remove('active');
+    const button = document.getElementById('model-selector-btn');
+    if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+function closeQualityModal() {
+    const modal = document.getElementById('quality-modal');
+    if (modal) modal.classList.remove('active');
+    const button = document.getElementById('quality-selector-btn');
+    if (button) button.setAttribute('aria-expanded', 'false');
+}
+
+function setToggleState(button, on) {
+    if (!button) return;
+    button.classList.toggle('is-on', Boolean(on));
+    button.setAttribute('aria-pressed', String(Boolean(on)));
 }
 
 function updateSettingsForModel(modelName) {
@@ -917,14 +1019,60 @@ function updateSettingsForModel(modelName) {
     const thinkingBtn = document.getElementById('thinking-btn');
     const qualityBtn = document.getElementById('quality-selector-btn');
 
-    if (searchBtn) searchBtn.style.display = hasSearch ? 'flex' : 'none';
-    if (thinkingBtn) {
-        thinkingBtn.style.display = hasThinking ? 'flex' : 'none';
-        const isThinking = localStorage.getItem('showThinking') === 'true';
-        thinkingBtn.style.backgroundColor = isThinking ? 'var(--accent)' : 'var(--bg-tertiary)';
-        thinkingBtn.style.color = isThinking ? 'white' : 'var(--text-secondary)';
+    if (searchBtn) {
+        searchBtn.hidden = !hasSearch;
+        setToggleState(searchBtn, localStorage.getItem('enableSearch') === 'true');
     }
-    if (qualityBtn) qualityBtn.style.display = hasThinking ? 'flex' : 'none';
+    if (thinkingBtn) {
+        thinkingBtn.hidden = !hasThinking;
+        setToggleState(thinkingBtn, dom.thinkingToggle.checked);
+    }
+    if (qualityBtn) {
+        qualityBtn.hidden = !hasThinking;
+        const quality = dom.qualitySelect ? dom.qualitySelect.value : 'none';
+        qualityBtn.classList.toggle('is-on', quality !== 'none');
+    }
+
+    // Keep the full tools row out of the layout when no chip applies, without
+    // relying on :has() support.
+    const tools = document.getElementById('composer-tools');
+    if (tools) {
+        const anyVisible = [searchBtn, thinkingBtn, qualityBtn].some((btn) => btn && !btn.hidden);
+        tools.hidden = !anyVisible;
+    }
+
+    // The empty state names the active model, so refresh it on model changes.
+    if (!state.messages.length) showEmptyState();
+}
+
+// --- Theme ---
+
+const THEME_ORDER = ['auto', 'light', 'dark'];
+const THEME_LABELS = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+const THEME_ICONS = { auto: '◐', light: '☀', dark: '☾' };
+
+function applyTheme(theme) {
+    const next = THEME_ORDER.includes(theme) ? theme : 'auto';
+    if (next === 'auto') {
+        delete document.documentElement.dataset.theme;
+    } else {
+        document.documentElement.dataset.theme = next;
+    }
+
+    const toggle = dom.themeToggle || document.getElementById('theme-toggle');
+    if (!toggle) return;
+    const label = toggle.querySelector('.theme-label');
+    const icon = toggle.querySelector('.theme-icon');
+    if (label) label.textContent = THEME_LABELS[next];
+    if (icon) icon.textContent = THEME_ICONS[next];
+    toggle.setAttribute('aria-label', `Theme: ${THEME_LABELS[next].toLowerCase()}. Change theme`);
+}
+
+function cycleTheme() {
+    const current = localStorage.getItem('theme') || 'auto';
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(current) + 1) % THEME_ORDER.length];
+    localStorage.setItem('theme', next);
+    applyTheme(next);
 }
 
 function setFontSize(size) {
@@ -947,8 +1095,9 @@ function setQualityPreset(value) {
     document.querySelectorAll('#quality-modal [data-quality]').forEach((element) => {
         element.classList.toggle('selected', element.dataset.quality === value);
     });
-    const modal = document.getElementById('quality-modal');
-    if (modal) modal.classList.remove('active');
+    const qualityBtn = document.getElementById('quality-selector-btn');
+    if (qualityBtn) qualityBtn.classList.toggle('is-on', value !== 'none');
+    closeQualityModal();
 }
 
 // --- Init ---
@@ -964,10 +1113,26 @@ function setupEventListeners() {
     dom.overlay.addEventListener('click', () => {
         closeSidebar();
         closeModelModal();
-        const qualityModal = document.getElementById('quality-modal');
-        if (qualityModal) qualityModal.classList.remove('active');
+        closeQualityModal();
     });
     dom.newChatBtn.addEventListener('click', createNewChat);
+
+    if (dom.chatContainer) {
+        dom.chatContainer.addEventListener('scroll', updateScrollButton, { passive: true });
+    }
+    if (dom.scrollBottomBtn) {
+        dom.scrollBottomBtn.addEventListener('click', () => scrollToBottom(true));
+    }
+    if (dom.themeToggle) {
+        dom.themeToggle.addEventListener('click', cycleTheme);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        closeModelModal();
+        closeQualityModal();
+        if (state.isSidebarOpen) closeSidebar();
+    });
 
     const headerNewChatBtn = document.getElementById('header-new-chat-btn');
     if (headerNewChatBtn) headerNewChatBtn.addEventListener('click', createNewChat);
@@ -978,6 +1143,7 @@ function setupEventListeners() {
         modelSelectorBtn.addEventListener('click', (event) => {
             event.stopPropagation();
             modelModal.classList.add('active');
+            modelSelectorBtn.setAttribute('aria-expanded', 'true');
             renderModelSelect();
         });
     }
@@ -1008,7 +1174,7 @@ function setupEventListeners() {
         if (qualityModal && qualityModal.classList.contains('active')
             && !qualityModal.querySelector('.model-modal-content').contains(event.target)
             && qualitySelectorBtn && !qualitySelectorBtn.contains(event.target)) {
-            qualityModal.classList.remove('active');
+            closeQualityModal();
         }
     });
 
@@ -1029,7 +1195,7 @@ function setupEventListeners() {
     dom.thinkingToggle.addEventListener('change', (event) => {
         localStorage.setItem('showThinking', event.target.checked);
         const thinkingBtnEl = document.getElementById('thinking-btn');
-        if (thinkingBtnEl) thinkingBtnEl.setAttribute('aria-pressed', String(event.target.checked));
+        setToggleState(thinkingBtnEl, event.target.checked);
         document.querySelectorAll('.thinking-block').forEach((element) => {
             element.classList.toggle('active', event.target.checked);
         });
@@ -1040,9 +1206,7 @@ function setupEventListeners() {
         searchBtn.addEventListener('click', () => {
             const next = localStorage.getItem('enableSearch') !== 'true';
             localStorage.setItem('enableSearch', String(next));
-            searchBtn.style.backgroundColor = next ? 'var(--accent)' : 'var(--bg-tertiary)';
-            searchBtn.style.color = next ? 'white' : 'var(--text-secondary)';
-            searchBtn.setAttribute('aria-pressed', String(next));
+            setToggleState(searchBtn, next);
         });
     }
 
@@ -1052,11 +1216,12 @@ function setupEventListeners() {
         qualitySelectorBtn.addEventListener('click', (event) => {
             event.stopPropagation();
             qualityModal.classList.add('active');
+            qualitySelectorBtn.setAttribute('aria-expanded', 'true');
         });
     }
     const closeQualityBtn = document.getElementById('close-quality-modal');
     if (closeQualityBtn && qualityModal) {
-        closeQualityBtn.addEventListener('click', () => qualityModal.classList.remove('active'));
+        closeQualityBtn.addEventListener('click', closeQualityModal);
     }
     document.querySelectorAll('#quality-modal [data-quality]').forEach((element) => {
         const apply = () => setQualityPreset(element.dataset.quality);
@@ -1198,17 +1363,12 @@ async function completeInit() {
         const savedThinking = localStorage.getItem('showThinking');
         if (savedThinking !== null) {
             dom.thinkingToggle.checked = savedThinking === 'true';
-            const thinkingBtnEl = document.getElementById('thinking-btn');
-            if (thinkingBtnEl) thinkingBtnEl.setAttribute('aria-pressed', String(dom.thinkingToggle.checked));
+            setToggleState(document.getElementById('thinking-btn'), dom.thinkingToggle.checked);
         }
 
         const searchOn = localStorage.getItem('enableSearch') === 'true';
         const searchBtn = document.getElementById('search-btn');
-        if (searchBtn) {
-            searchBtn.style.backgroundColor = searchOn ? 'var(--accent)' : 'var(--bg-tertiary)';
-            searchBtn.style.color = searchOn ? 'white' : 'var(--text-secondary)';
-            searchBtn.setAttribute('aria-pressed', String(searchOn));
-        }
+        if (searchBtn) setToggleState(searchBtn, searchOn);
 
         setFontSize(localStorage.getItem('fontSize') || 'medium');
     }
@@ -1220,6 +1380,7 @@ async function completeInit() {
 }
 
 async function init() {
+    applyTheme(localStorage.getItem('theme') || 'auto');
     const status = await checkStatus();
 
     if (!status) {
